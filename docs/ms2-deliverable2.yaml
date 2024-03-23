@@ -1,0 +1,33 @@
+# Members of your group.
+group:
+  - name: Eashan Vagish
+    netid: ev264
+  - name: Alex Noviello
+    netid: abn52
+  - name: Andrew Noviello
+    netid: acn57
+  - name: Simon Ilincev
+    netid: sci24
+# Your PM.
+pm:
+  name: Atulya Lohani
+  netid: al878
+# Set to false if you don't want your gallery entry to be public.
+publish: true
+# Pithy title
+title: "SQamL"
+# OK if this is a Cornell Github link, but public gallery viewers won't be able to see it.
+git-repo: "https://github.com/Destaq/sqaml"
+# If you have no demo screencast, replace the url string with an empty string ""
+demo-video-url: ""
+# Write a short, attention-grabbing description of your project.
+desc: >
+  A basic custom relational database implemented entirely in OCaml,
+  using file storage with .sqaml syntax for persisting data.
+  Implements a SQL parser with general database and table functions
+  as you might expect à la PostgreSQL.
+
+  This includes insert, delete, update, join, foreign keys, where, and from.
+  
+  Additionally, we support running a SQL file or loading in a .sqaml file
+  to some query-able “database”. Standard SQL syntax can be used in the CLI.
