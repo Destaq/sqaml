@@ -1,0 +1,4 @@
+(executable
+ (public_name sqaml)
+ (name main)
+ (libraries sqaml))
