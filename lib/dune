@@ -1,2 +1,3 @@
 (library
- (name sqaml))
+ (name sqaml)
+ (modules row table parser database))

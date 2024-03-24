@@ -1,5 +1,4 @@
 (lang dune 3.14)
-
 (name sqaml)
 
 (generate_opam_files true)
