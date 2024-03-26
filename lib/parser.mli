@@ -1,3 +1,4 @@
+(**Type for storing type of token in query.*)
 type token =
   | Identifier of string
   | IntKeyword
