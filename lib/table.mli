@@ -7,17 +7,27 @@ type column_type =
   | Date_type
   | Null_type
 
-type column = {
-name: string;
-col_type: column_type;
-primary_key: bool;
-}
+type column = { name : string; col_type : column_type; primary_key : bool }
 type table
+
+val construct_transform : string list -> value list -> table -> row -> row
+
+val construct_predicate :
+  string list ->
+  value list ->
+  (value -> value -> bool) list ->
+  table ->
+  row ->
+  bool
+
+val construct_row_map : table -> row -> (string, value) Hashtbl.t
+val convert_to_value : column_type -> string -> value
+val get_column_type : table -> string -> column_type
 
 val create_table : column list -> table
 (** Create a new table with the given columns. *)
 
-val insert_row : table -> string list ->  string list -> unit
+val insert_row : table -> string list -> string list -> unit
 (** Insert a row into the table. *)
 
 val update_rows : table -> (row -> bool) -> (row -> row) -> unit
