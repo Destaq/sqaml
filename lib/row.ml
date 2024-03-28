@@ -7,6 +7,14 @@ type value =
 
 type row = { values : value list }
 
+let print_value v =
+  match v with
+  | Int i -> print_int i
+  | Varchar s -> print_string s
+  | Float f -> print_float f
+  | Date d -> print_string d
+  | Null -> print_string "null"
+
 let value_equals val1 val2 =
   match (val1, val2) with
   | Int v1, Int v2 -> v1 = v2

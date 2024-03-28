@@ -3,16 +3,6 @@ open Database
 
 type token = Identifier of string | IntKeyword | VarcharKeyword | PrimaryKey
 
-(* let rec print_string_list lst =
-   match lst with
-   | [] -> ()
-   | [ h ] ->
-       let () = print_string h in
-       ()
-   | h :: t ->
-       let () = print_string (h ^ ", ") in
-       print_string_list t *)
-
 let print_tokenized tokens =
   List.iter
     (function
@@ -111,7 +101,7 @@ let get_update_fields_clause all_tokens =
     | h :: t -> (
         match h with
         | Identifier cur_tok ->
-            if cur_tok = "WHERE" then []
+            if cur_tok = "WHERE" then List.rev acc
             else get_update_fields_clause_aux t (Identifier cur_tok :: acc)
         | _ -> failwith "Unrecognized update clause query.")
   in

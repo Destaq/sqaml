@@ -7,6 +7,7 @@ type value =
 
 type row = { values : value list }
 
+val print_value : value -> unit
 val print_row : row -> unit
 val value_equals : value -> value -> bool
 val value_not_equals : value -> value -> bool
