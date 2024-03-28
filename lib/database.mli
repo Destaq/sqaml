@@ -15,7 +15,7 @@ val construct_predicate :
 (**[construct_predicate] constructs a predicate from a where clause.*)
 
 val get_column_type : string -> string -> column_type
-(**[get_column_type] gets the type of a column of a table in the database.*)
+(**[get_column_type t c] gets the type of column [c] of a table [t] in the database.*)
 
 val show_all_tables : unit -> unit
 (** [show_all_tables] prints the list of tables currently in the database.*)

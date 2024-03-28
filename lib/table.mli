@@ -1,5 +1,6 @@
 open Row
 
+(**Different types of columns.*)
 type column_type =
   | Int_type
   | Varchar_type
@@ -8,7 +9,10 @@ type column_type =
   | Null_type
 
 type column = { name : string; col_type : column_type; primary_key : bool }
+(**Representation type of column.*)
+
 type table
+(**Abstracted table type.*)
 
 val construct_transform : string list -> value list -> table -> row -> row
 
@@ -25,10 +29,10 @@ val convert_to_value : column_type -> string -> value
 val get_column_type : table -> string -> column_type
 
 val create_table : column list -> table
-(** Create a new table with the given columns. *)
+(** [create_table cl] creates a new table with the columns in [cl]. *)
 
 val insert_row : table -> string list -> string list -> unit
-(** Insert a row into the table. *)
+(** [insert_row t n v] inserts a row with column names [n] and values [v] into the table [t]. *)
 
 val update_rows : table -> (row -> bool) -> (row -> row) -> unit
 (** Update rows based on a predicate and a transformation function. *)
