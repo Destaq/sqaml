@@ -45,7 +45,9 @@ let create_table columns table_name =
   else
     let new_table = ref (create_table columns) in
     Hashtbl.add tables table_name new_table;
-    print_table !new_table
+    print_table !new_table;
+    (*write the table to file*)
+    write_table_to_csv !new_table (table_name ^ ".sqaml")
 
 (* Function to insert a row into a table *)
 let insert_row table values row =
@@ -53,7 +55,8 @@ let insert_row table values row =
   else
     let table_ref = Hashtbl.find tables table in
     insert_row !table_ref values row;
-    print_table !table_ref
+    print_table !table_ref;
+    write_table_to_csv !table_ref (table ^ ".sqaml")
 
 (* Function to update rows in a table *)
 let update_rows table predicate transform =
@@ -74,7 +77,8 @@ let select_rows table fields predicate =
   if not (Hashtbl.mem tables table) then failwith "Table does not exist"
   else
     let table_ref = Hashtbl.find tables table in
-    select_rows !table_ref fields predicate
+    let selected_rows = select_rows !table_ref fields predicate in
+    List.iter (fun row -> print_row row) selected_rows
 
 let select_all table =
   if not (Hashtbl.mem tables table) then failwith "Table does not exist"
@@ -83,9 +87,17 @@ let select_all table =
     let rows = select_all !table_ref in
     List.iter (fun row -> print_row row) rows
 
+
 (* Function to print a table *)
 let print_table table =
   if not (Hashtbl.mem tables table) then failwith "Table does not exist"
   else
     let table_ref = Hashtbl.find tables table in
     print_table !table_ref
+
+let get_column_names table =
+  if not (Hashtbl.mem tables table) then failwith "Table does not exist"
+  else
+    let table_ref = Hashtbl.find tables table in
+    get_column_names !table_ref
+

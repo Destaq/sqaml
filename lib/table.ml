@@ -152,3 +152,31 @@ let print_table table =
   in
   List.iter print_column table.columns;
   List.iter (fun row -> print_row row) table.rows
+
+
+(* Helper function to convert a value to a CSV-compatible string *)
+let string_of_value = function
+  | Int i -> string_of_int i
+  | Varchar s -> "\"" ^ (String.escaped s) ^ "\""
+  | Float f -> string_of_float f
+  | Date d -> d 
+  | Null -> ""
+
+(* Serialize the row to CSV *)
+let string_of_row row =
+  String.concat "," (List.map string_of_value row.values)
+
+(* Serialize the entire table to CSV *)
+let serialize_table_to_csv table =
+  String.concat "\n" (List.map string_of_row table.rows)
+
+(* Write data to a file *)
+let write_to_file ~filename ~data =
+  let channel = open_out filename in
+  output_string channel data;
+  close_out channel
+
+(* Function to convert and write a table to a CSV file *)
+let write_table_to_csv table filename =
+  let csv_data = serialize_table_to_csv table in
+  write_to_file ~filename ~data:csv_data

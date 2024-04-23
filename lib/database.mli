@@ -35,7 +35,7 @@ val update_rows : string -> (row -> bool) -> (row -> row) -> unit
 val delete_rows : string -> (row -> bool) -> unit
 (** [delete_rows table predicate] deletes rows based on a predicate. *)
 
-val select_rows : string -> string list -> (row -> bool) -> row list
+val select_rows : string -> string list -> (row -> bool) -> unit
 (** [select_rows table fields predicate] selects rows based on a predicate. *)
 
 val print_table : string -> unit
@@ -43,3 +43,6 @@ val print_table : string -> unit
 
 val select_all : string -> unit
 (** [select_all] selects every row and column from the table*)
+
+val get_column_names : string -> string list
+(** [get_column_names] gets the names of the columns of a table in the database.*)

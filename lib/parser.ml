@@ -33,58 +33,6 @@ let tokenize_query query =
   |> List.filter (fun s -> s <> "")
   |> tokenize []
 
-let parse_create_table tokens =
-  let rec parse_columns acc = function
-    | [] -> List.rev acc
-    | Identifier name :: IntKeyword :: PrimaryKey :: PrimaryKey :: tl ->
-        parse_columns
-          ({ name; col_type = Int_type; primary_key = true } :: acc)
-          tl
-    | Identifier name :: IntKeyword :: tl ->
-        parse_columns
-          ({ name; col_type = Int_type; primary_key = false } :: acc)
-          tl
-    | Identifier name :: VarcharKeyword :: tl ->
-        parse_columns
-          ({ name; col_type = Varchar_type; primary_key = false } :: acc)
-          tl
-    | Identifier ")" :: tl -> parse_columns acc tl
-    | Identifier "(" :: tl -> parse_columns acc tl
-    | Identifier "," :: tl -> parse_columns acc tl
-    | Identifier name :: PrimaryKey :: PrimaryKey :: tl ->
-        parse_columns
-          ({ name; col_type = Int_type; primary_key = true } :: acc)
-          tl
-    | _ -> raise (Failure "Syntax error in column definition")
-  in
-  let rec parse_values acc = function
-    | [] -> failwith "Syntax error in column definition"
-    | Identifier "(" :: tl -> parse_values acc tl
-    | Identifier ")" :: Identifier "VALUES" :: row_values ->
-        (List.rev acc, row_values)
-    | Identifier ")" :: _ -> (List.rev acc, [])
-    | Identifier "," :: tl -> parse_values acc tl
-    | Identifier name :: tl -> parse_values (name :: acc) tl
-    | _ -> raise (Failure "Syntax error in column definition")
-  in
-
-  match tokens with
-  | Identifier "CREATE" :: Identifier "TABLE" :: Identifier _table_name :: tl ->
-      let columns = parse_columns [] tl in
-      create_table columns _table_name
-  | Identifier "INSERT" :: Identifier "INTO" :: Identifier _table_name :: tl ->
-      let columns, row_values = parse_values [] tl in
-      let row_values, _ = parse_values [] row_values in
-      insert_row _table_name columns row_values
-  | [
-   Identifier "SELECT";
-   Identifier "*";
-   Identifier "FROM";
-   Identifier _table_name;
-  ] ->
-      select_all _table_name
-  | _ -> raise (Failure "Syntax error in SQL query")
-
 let rec includes_where_clause tokens =
   match tokens with
   | [] -> (false, [])
@@ -203,6 +151,107 @@ let replace_all str old_substring new_substring =
     with Not_found -> str
   in
   replace_helper str old_substring new_substring 0
+
+let rec parse_columns acc = function
+  | [] -> List.rev acc
+  | Identifier name :: IntKeyword :: PrimaryKey :: PrimaryKey :: tl ->
+      parse_columns
+        ({ name; col_type = Int_type; primary_key = true } :: acc)
+        tl
+  | Identifier name :: IntKeyword :: tl ->
+      parse_columns
+        ({ name; col_type = Int_type; primary_key = false } :: acc)
+        tl
+  | Identifier name :: VarcharKeyword :: tl ->
+      parse_columns
+        ({ name; col_type = Varchar_type; primary_key = false } :: acc)
+        tl
+  | Identifier ")" :: tl -> parse_columns acc tl
+  | Identifier "(" :: tl -> parse_columns acc tl
+  | Identifier "," :: tl -> parse_columns acc tl
+  | Identifier name :: PrimaryKey :: PrimaryKey :: tl ->
+      parse_columns
+        ({ name; col_type = Int_type; primary_key = true } :: acc)
+        tl
+  | _ -> raise (Failure "Syntax error in column definition")
+
+let rec extract_columns acc = function
+  | Identifier "FROM" :: _ as rest -> (List.rev acc, rest)
+  | Identifier col :: Identifier "," :: tl -> extract_columns (col :: acc) tl
+  | Identifier col :: tl -> extract_columns (col :: acc) tl
+  | _ -> failwith "Syntax error in SELECT columns"
+
+let rec parse_values acc = function
+  | [] -> failwith "Syntax error in column definition"
+  | Identifier "(" :: tl -> parse_values acc tl
+  | Identifier ")" :: Identifier "VALUES" :: row_values ->
+      (List.rev acc, row_values)
+  | Identifier ")" :: _ -> (List.rev acc, [])
+  | Identifier "," :: tl -> parse_values acc tl
+  | Identifier name :: tl -> parse_values (name :: acc) tl
+  | _ -> raise (Failure "Syntax error in column definition")
+
+let parse_create_table tokens =
+  match tokens with
+  | Identifier "CREATE" :: Identifier "TABLE" :: Identifier _table_name :: tl ->
+      let columns = parse_columns [] tl in
+      create_table columns _table_name
+  | Identifier "INSERT" :: Identifier "INTO" :: Identifier _table_name :: tl ->
+      let columns, row_values = parse_values [] tl in
+      let row_values, _ = parse_values [] row_values in
+      insert_row _table_name columns row_values
+  | [
+   Identifier "SELECT";
+   Identifier "*";
+   Identifier "FROM";
+   Identifier _table_name;
+  ] ->
+      select_all _table_name
+  | [
+   Identifier "SELECT";
+   Identifier "*";
+   Identifier "FROM";
+   Identifier _table_name;
+   Identifier "WHERE";
+   Identifier field1;
+   Identifier op;
+   Identifier value1;
+  ] ->
+      let columns_lst, values_lst, ops_lst =
+        construct_predicate_params _table_name
+          [
+            Identifier "WHERE";
+            Identifier field1;
+            Identifier op;
+            Identifier value1;
+          ]
+      in
+      let pred =
+        construct_predicate columns_lst values_lst ops_lst _table_name
+      in
+      select_rows _table_name (get_column_names _table_name) pred
+  | Identifier "SELECT" :: tl -> (
+      let columns, rest = extract_columns [] tl in
+      match rest with
+      | Identifier "FROM" :: Identifier table_name :: rest_conditions ->
+          let predicate =
+            if
+              List.exists
+                (function Identifier "WHERE" -> true | _ -> false)
+                rest_conditions
+            then
+              let columns_lst, values_lst, ops_lst =
+                construct_predicate_params table_name rest_conditions
+              in
+              let pred =
+                construct_predicate columns_lst values_lst ops_lst table_name
+              in
+              pred
+            else fun _ -> true
+          in
+          select_rows table_name columns predicate
+      | _ -> raise (Failure "Syntax error in SELECT query"))
+  | _ -> raise (Failure "Syntax error in SQL query")
 
 let parse_query query =
   let query = replace_all query "," " , " in

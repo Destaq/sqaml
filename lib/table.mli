@@ -27,6 +27,9 @@ val get_column_type : table -> string -> column_type
 val create_table : column list -> table
 (** Create a new table with the given columns. *)
 
+val get_column_names : table -> string list
+(** Get the names of the columns in the table. *)
+
 val insert_row : table -> string list -> string list -> unit
 (** Insert a row into the table. *)
 
@@ -44,3 +47,6 @@ val print_table : table -> unit
 
 val select_all : table -> row list
 (** Select all rows in the table. *)
+
+val write_table_to_csv : table -> string -> unit
+(** Write the table to a CSV file. *)
