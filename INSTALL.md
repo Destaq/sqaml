@@ -105,15 +105,15 @@ name: varchar
 1 'Simon'
 
 Enter an SQL command (or 'exit' to quit): SELECT * FROM users;
-2 'Alex' 
+2 'Alex'
 1 'Simon'
 
-Enter an SQL command (or 'exit' to quit): DELETE FROM users WHERE name = 'Alex'; 
+Enter an SQL command (or 'exit' to quit): DELETE FROM users WHERE name = 'Alex';
 
 Enter an SQL command (or 'exit' to quit): UPDATE users SET name = 'Clarkson' WHERE id = 1;
 
 Enter an SQL command (or 'exit' to quit): SELECT * FROM users;
-1 'Clarkson' 
+1 'Clarkson'
 
 Enter an SQL command (or 'exit' to quit): SHOW TABLES;
 Tables:
@@ -124,6 +124,18 @@ Enter an SQL command (or 'exit' to quit): DROP TABLE users;
 Enter an SQL command (or 'exit' to quit): SHOW TABLES;
 No tables in database.
 ```
+
+## Tests
+
+To run test, you can run `make bisect` from the root directory. This will run the tests and generate a coverage report in the `_coverage` directory, which is automatically opened.
+
+You can also choose to directly run the tests through `dune test`, also from the root directory.
+
+```bash
+dune test
+```
+
+Please note that our tests require a Unix-like environment to run.
 
 ## Addendum
 
