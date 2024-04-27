@@ -1,3 +1,6 @@
 (library
  (name sqaml)
- (modules row table parser database))
+ (modules row table parser database)
+ (libraries ounit2)
+ (instrumentation
+  (backend bisect_ppx)))
