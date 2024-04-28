@@ -20,8 +20,5 @@ jobs:
             - name: Install dependencies
               run: opam install -y dune ounit2 qcheck bisect_ppx
 
-            - name: Setup dune path
-              run: eval $(opam env)
-
             - name: Build and test
-              run: dune build && dune test
+              run: opam exec -- dune build && opam exec -- dune test
