@@ -32,6 +32,8 @@ let with_redirected_stdout f =
 let with_tables f =
   Sqaml.Database.drop_table "test_table";
   Sqaml.Database.drop_table "another_table";
+  Sqaml.Database.drop_table "users";
+  Sqaml.Database.drop_table "another";
   (* Create the tables *)
   Sqaml.Database.create_table
     [
@@ -63,6 +65,8 @@ let with_tables f =
   (* Drop the tables *)
   Sqaml.Database.drop_table "test_table";
   Sqaml.Database.drop_table "another_table";
+  Sqaml.Database.drop_table "users";
+  Sqaml.Database.drop_table "another";
   ()
 
 (** [as_test name f] is an OUnit test with name [name] that runs [f]. *)
@@ -73,6 +77,8 @@ let as_test name f = name >:: fun _ -> f ()
 let with_no_tables f =
   Sqaml.Database.drop_table "test_table";
   Sqaml.Database.drop_table "another_table";
+  Sqaml.Database.drop_table "users";
+  Sqaml.Database.drop_table "another";
   f ();
   ()
 
