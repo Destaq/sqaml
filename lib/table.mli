@@ -1,6 +1,6 @@
 open Row
 
-(**Different types of columns.*)
+(** Different types of columns. *)
 type column_type =
   | Int_type
   | Varchar_type
@@ -9,10 +9,10 @@ type column_type =
   | Null_type
 
 type column = { name : string; col_type : column_type; primary_key : bool }
-(**Representation type of column.*)
+(** Representation type of column. *)
 
 type table
-(**Abstracted table type.*)
+(** Abstracted table type. *)
 
 val construct_transform : string list -> value list -> table -> row -> row
 

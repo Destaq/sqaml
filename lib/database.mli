@@ -4,6 +4,7 @@ open Table
 open Row
 
 val construct_transform : string list -> value list -> string -> row -> row
+(** [construct_transform] constructs a transformation function from a set clause. *)
 
 val construct_predicate :
   string list ->
@@ -12,13 +13,13 @@ val construct_predicate :
   string ->
   row ->
   bool
-(**[construct_predicate] constructs a predicate from a where clause.*)
+(** [construct_predicate] constructs a predicate from a where clause. *)
 
 val get_column_type : string -> string -> column_type
-(**[get_column_type t c] gets the type of column [c] of a table [t] in the database.*)
+(** [get_column_type t c] gets the type of column [c] of a table [t] in the database. *)
 
 val show_all_tables : unit -> unit
-(** [show_all_tables] prints the list of tables currently in the database.*)
+(** [show_all_tables] prints the list of tables currently in the database. *)
 
 val drop_table : string -> unit
 (** [drop_table] drops a table from the database, by name.*)
