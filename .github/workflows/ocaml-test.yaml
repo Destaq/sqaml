@@ -1,0 +1,26 @@
+name: OCaml Dune Test
+
+on:
+    push:
+        branches:
+            - main
+    pull_request:
+        branches:
+            - main
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v2
+
+            - name: Set up OCaml
+              uses: ocaml/setup-ocaml@v1
+
+            - name: Install dependencies
+              run: opam install --deps-only --locked .
+
+            - name: Build and test
+              run: dune build && dune test
