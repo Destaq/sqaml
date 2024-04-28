@@ -18,7 +18,10 @@ jobs:
               uses: ocaml/setup-ocaml@v1
 
             - name: Install dependencies
-              run: opam install -y ounit2 qcheck bisect_ppx
+              run: opam install -y dune ounit2 qcheck bisect_ppx
+
+            - name: Setup dune path
+              run: eval $(opam config env)
 
             - name: Build and test
               run: dune build && dune test
