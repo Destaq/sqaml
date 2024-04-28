@@ -18,7 +18,7 @@ jobs:
               uses: ocaml/setup-ocaml@v1
 
             - name: Install dependencies
-              run: opam install --deps-only --locked .
+              run: opam install -y ounit2 qcheck bisect_ppx
 
             - name: Build and test
               run: dune build && dune test
