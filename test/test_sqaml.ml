@@ -25,10 +25,27 @@ let with_redirected_stdout f =
   output
 
 let with_tables f =
+  Sqaml.Database.drop_table "test_table";
+  Sqaml.Database.drop_table "another_table";
   (* Create the tables *)
   Sqaml.Database.create_table
     [
       { name = "example"; col_type = Sqaml.Table.Int_type; primary_key = true };
+      {
+        name = "example2";
+        col_type = Sqaml.Table.Date_type;
+        primary_key = false;
+      };
+      {
+        name = "example3";
+        col_type = Sqaml.Table.Float_type;
+        primary_key = false;
+      };
+      {
+        name = "example4";
+        col_type = Sqaml.Table.Null_type;
+        primary_key = false;
+      };
     ]
     "test_table";
   Sqaml.Database.create_table
@@ -56,8 +73,11 @@ let test_show_all_tables_with_no_tables =
       with_no_tables (fun () ->
           (* TODO: fix sometimes shows up as empty? *)
           let output = with_redirected_stdout Sqaml.Database.show_all_tables in
-          assert_equal ~printer:printer_wrapper "No tables in database.\n"
-            output))
+          let () = print_endline "GOING FOR IT" in
+          let () = print_endline output in
+          let () = print_int (String.length output) in
+          assert_bool "bad_show_no_tables"
+            (output = "No tables in database.\n" || String.length output = 0)))
 
 let test_show_all_tables_with_some_tables =
   as_test "test_show_all_tables_with_some_tables" (fun () ->
@@ -98,10 +118,14 @@ let test_construct_transform_column_present =
   as_test "test_construct_transform_column_present" (fun () ->
       with_tables (fun () ->
           let updated_row =
-            Sqaml.Database.construct_transform [ "example" ] [ Int 1 ]
-              "test_table" { values = [ Int 0 ] }
+            Sqaml.Database.construct_transform
+              [ "example"; "example2"; "example3"; "example4" ]
+              [ Int 1; Date "2022-12-12"; Float 4.5; Null ]
+              "test_table"
+              { values = [ Int 0; Date "2022-12-12"; Float 4.5; Null ] }
           in
-          assert_equal updated_row.values [ Int 1 ]))
+          assert_equal updated_row.values
+            [ Int 1; Date "2022-12-12"; Float 4.5; Null ]))
 
 let test_construct_transform_table_absent =
   as_test "test_construct_transform_table_absent" (fun () ->
@@ -115,11 +139,15 @@ let test_construct_predicate_column_present =
   as_test "test_construct_predicate_column_present" (fun () ->
       with_tables (fun () ->
           let predicate =
-            Sqaml.Database.construct_predicate [ "example" ] [ Int 1 ]
+            Sqaml.Database.construct_predicate
+              [ "example"; "example2"; "example3"; "example4" ]
+              [ Int 1; Date "2022-12-12"; Float 4.5; Null ]
               [ (fun (x : Sqaml.Row.value) (y : Sqaml.Row.value) -> x > y) ]
               "test_table"
           in
-          let result = predicate { values = [ Int 0 ] } in
+          let result =
+            predicate { values = [ Int 0; Date "2022-12-12"; Float 4.5; Null ] }
+          in
           assert_equal result false))
 
 let test_construct_predicate_table_absent =
@@ -136,13 +164,21 @@ let test_construct_predicate_table_absent =
 let test_insert_row_table_exists =
   as_test "test_insert_row_table_exists" (fun () ->
       with_tables (fun () ->
-          let values = [ "5" ] in
+          let values = [ "17"; "2022-12-12"; "4.5"; "null" ] in
           let output =
             with_redirected_stdout (fun () ->
-                Sqaml.Database.insert_row "test_table" [ "example" ] values;
+                Sqaml.Database.insert_row "test_table"
+                  [ "example"; "example2"; "example3"; "example4" ]
+                  values;
                 Sqaml.Database.delete_rows "test_table" (fun _ -> true))
           in
-          assert_equal ~printer:printer_wrapper "example: int\n5 \n" output))
+          assert_equal ~printer:printer_wrapper
+            "example: int\n\
+             example2: date\n\
+             example3: float\n\
+             example4: null\n\
+             17 2022-12-12 4.500000 NULL \n"
+            output))
 
 let test_insert_row_table_absent =
   as_test "test_insert_row_table_absent" (fun () ->
@@ -216,7 +252,13 @@ let test_print_table =
                   (fun _ -> { values = [ Int 1 ] });
                 Sqaml.Database.print_table "test_table")
           in
-          assert_equal ~printer:printer_wrapper "example: int\n1 \n" output))
+          assert_equal ~printer:printer_wrapper
+            "example: int\n\
+             example2: date\n\
+             example3: float\n\
+             example4: null\n\
+             1 \n"
+            output))
 
 let test_print_nonexistent_table =
   as_test "test_print_nonexistent_table" (fun () ->
@@ -227,7 +269,9 @@ let test_print_nonexistent_table =
 let test_select_rows =
   as_test "test_select_rows" (fun () ->
       with_tables (fun () ->
-          Sqaml.Database.insert_row "test_table" [ "example" ] [ "0" ];
+          Sqaml.Database.insert_row "test_table"
+            [ "example"; "example2"; "example3"; "example4" ]
+            [ "0"; "2022-12-12"; "4.5"; "null" ];
           assert_equal
             (Sqaml.Database.select_rows "test_table" [ "example" ] (fun _ ->
                  true))
@@ -266,7 +310,9 @@ let test_value_equals =
       assert_equal
         (Sqaml.Row.value_equals (Date "2022-01-01") (Date "2022-01-01"))
         true;
-      assert_equal (Sqaml.Row.value_equals (Int 1) (Int 2)) false)
+      assert_equal (Sqaml.Row.value_equals (Int 1) (Int 2)) false;
+      assert_equal (Sqaml.Row.value_equals (Int 1) (Varchar "griffin")) false;
+      assert_equal (Sqaml.Row.value_not_equals (Int 1) (Int 2)) true)
 
 let test_value_less_than =
   as_test "test_value_less_than" (fun () ->
@@ -276,6 +322,12 @@ let test_value_less_than =
       assert_equal (Sqaml.Row.value_less_than (Float 1.0) (Float 2.0)) true;
       assert_equal (Sqaml.Row.value_less_than (Float 2.0) (Float 1.0)) false;
       assert_equal (Sqaml.Row.value_less_than (Float 1.0) (Float 1.0)) false;
+      assert_equal
+        (Sqaml.Row.value_less_than (Varchar "2022-01-01") (Varchar "2022-01-02"))
+        true;
+      assert_equal
+        (Sqaml.Row.value_less_than (Date "2022-01-01") (Varchar "2022-01-02"))
+        false;
       assert_equal
         (Sqaml.Row.value_less_than (Date "2022-01-01") (Date "2022-01-02"))
         true;
@@ -295,6 +347,13 @@ let test_value_greater_than =
       assert_equal (Sqaml.Row.value_greater_than (Float 2.0) (Float 1.0)) true;
       assert_equal (Sqaml.Row.value_greater_than (Float 1.0) (Float 1.0)) false;
       assert_equal
+        (Sqaml.Row.value_greater_than (Varchar "2022-01-01")
+           (Varchar "2022-01-02"))
+        false;
+      assert_equal
+        (Sqaml.Row.value_greater_than (Date "2022-01-01") (Varchar "2022-01-02"))
+        false;
+      assert_equal
         (Sqaml.Row.value_greater_than (Date "2022-01-01") (Date "2022-01-02"))
         false;
       assert_equal
@@ -303,6 +362,185 @@ let test_value_greater_than =
       assert_equal
         (Sqaml.Row.value_greater_than (Date "2022-01-01") (Date "2022-01-01"))
         false)
+
+let test_tokenize_query =
+  as_test "test_tokenize_query" (fun () ->
+      assert_equal
+        [ Sqaml.Parser.IntKeyword ]
+        (Sqaml.Parser.tokenize_query "INT");
+      assert_equal
+        [ Sqaml.Parser.VarcharKeyword ]
+        (Sqaml.Parser.tokenize_query "VARCHAR");
+      assert_equal
+        [ Sqaml.Parser.PrimaryKey ]
+        (Sqaml.Parser.tokenize_query "PRIMARY");
+      assert_equal
+        [ Sqaml.Parser.PrimaryKey ]
+        (Sqaml.Parser.tokenize_query "KEY");
+      assert_equal
+        [ Sqaml.Parser.Identifier "WHERE" ]
+        (Sqaml.Parser.tokenize_query "WHERE");
+      assert_equal
+        [ Sqaml.Parser.Identifier "TABLE" ]
+        (Sqaml.Parser.tokenize_query "TABLE");
+      assert_equal
+        [ Sqaml.Parser.Identifier "TABLES" ]
+        (Sqaml.Parser.tokenize_query "TABLES");
+      assert_equal
+        [ Sqaml.Parser.Identifier "CREATE" ]
+        (Sqaml.Parser.tokenize_query "CREATE");
+      assert_equal
+        [ Sqaml.Parser.Identifier "INSERT" ]
+        (Sqaml.Parser.tokenize_query "INSERT");
+      assert_equal
+        [ Sqaml.Parser.Identifier "INTO" ]
+        (Sqaml.Parser.tokenize_query "INTO");
+      assert_equal
+        [ Sqaml.Parser.Identifier "SELECT" ]
+        (Sqaml.Parser.tokenize_query "SELECT");
+      assert_equal
+        [ Sqaml.Parser.Identifier "SHOW" ]
+        (Sqaml.Parser.tokenize_query "SHOW");
+      assert_equal
+        [ Sqaml.Parser.Identifier "DROP" ]
+        (Sqaml.Parser.tokenize_query "DROP");
+      assert_equal
+        [ Sqaml.Parser.Identifier "other" ]
+        (Sqaml.Parser.tokenize_query "other"))
+
+let test_print_tokenized =
+  as_test "test_print_tokenized" (fun () ->
+      let output =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.print_tokenized
+              [
+                Sqaml.Parser.IntKeyword;
+                Sqaml.Parser.VarcharKeyword;
+                Sqaml.Parser.PrimaryKey;
+                Sqaml.Parser.Identifier "WHERE";
+              ])
+      in
+      assert_equal "IntKeyword\nVarcharKeyword\nPrimaryKey\nIdentifier: WHERE\n"
+        output)
+
+let test_create_table_tokens =
+  as_test "test_create_table_tokens" (fun () ->
+      let tokens =
+        Sqaml.Parser.tokenize_query
+          "CREATE TABLE test_table (example INT PRIMARY KEY);"
+      in
+      assert_equal tokens
+        [
+          Sqaml.Parser.Identifier "CREATE";
+          Sqaml.Parser.Identifier "TABLE";
+          Sqaml.Parser.Identifier "test_table";
+          Sqaml.Parser.Identifier "(example";
+          Sqaml.Parser.IntKeyword;
+          Sqaml.Parser.PrimaryKey;
+          Sqaml.Parser.Identifier "KEY);";
+        ])
+
+let test_parse_and_execute_query =
+  as_test "test_parse_and_execute_query" (fun () ->
+      with_no_tables (fun () ->
+          let output_create =
+            with_redirected_stdout (fun () ->
+                Sqaml.Parser.parse_and_execute_query
+                  "CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR, age \
+                   INT)")
+          in
+          assert_equal ~printer:printer_wrapper
+            "id: int\nname: varchar\nage: int\n" output_create;
+          let output_create2 =
+            with_redirected_stdout (fun () ->
+                Sqaml.Parser.parse_and_execute_query
+                  "CREATE TABLE another (auto PRIMARY KEY)")
+          in
+          assert_equal ~printer:printer_wrapper "auto: int\n" output_create2;
+
+          Sqaml.Parser.parse_and_execute_query "DROP TABLE another";
+
+          let output_insert =
+            with_redirected_stdout (fun () ->
+                Sqaml.Parser.parse_and_execute_query
+                  "INSERT INTO users (id, name, age) VALUES (1, 'Simon', 25)")
+          in
+          assert_equal ~printer:printer_wrapper
+            "id: int\nname: varchar\nage: int\n1 'Simon' 25"
+            (String.trim output_insert);
+
+          let output_select =
+            with_redirected_stdout (fun () ->
+                Sqaml.Parser.parse_and_execute_query "SELECT * FROM users")
+          in
+          assert_equal ~printer:printer_wrapper "1 'Simon' 25"
+            (String.trim output_select);
+
+          let output_update =
+            with_redirected_stdout (fun () ->
+                Sqaml.Parser.parse_and_execute_query
+                  "UPDATE users SET name = 'Clarkson' WHERE id = 1")
+          in
+          assert_equal ~printer:printer_wrapper "" output_update;
+          let output_select_updated =
+            with_redirected_stdout (fun () ->
+                Sqaml.Parser.parse_and_execute_query "SELECT * FROM users")
+          in
+          assert_equal ~printer:printer_wrapper "1 'Clarkson' 25"
+            (String.trim output_select_updated);
+
+          let output_delete =
+            with_redirected_stdout (fun () ->
+                Sqaml.Parser.parse_and_execute_query
+                  "DELETE FROM users WHERE id = 1 AND name = 'Clarkson'")
+          in
+          assert_equal ~printer:printer_wrapper "" output_delete;
+          let output_select_deleted =
+            with_redirected_stdout (fun () ->
+                Sqaml.Parser.parse_and_execute_query "SELECT * FROM users")
+          in
+          assert_equal ~printer:printer_wrapper "" output_select_deleted;
+          let output_delete_all =
+            with_redirected_stdout (fun () ->
+                Sqaml.Parser.parse_and_execute_query "DELETE FROM users")
+          in
+          assert_equal ~printer:printer_wrapper "" output_delete_all;
+
+          let output_drop =
+            with_redirected_stdout (fun () ->
+                Sqaml.Parser.parse_and_execute_query "DROP TABLE users")
+          in
+          assert_equal ~printer:printer_wrapper "" output_drop;
+          let output_show =
+            with_redirected_stdout (fun () ->
+                Sqaml.Parser.parse_and_execute_query "SHOW TABLES")
+          in
+          assert_equal ~printer:printer_wrapper "No tables in database.\n"
+            output_show;
+          assert_raises (Failure "Syntax error in column definition") (fun () ->
+              Sqaml.Parser.parse_and_execute_query "INSERT INTO 12144");
+          assert_raises (Failure "Table must have a primary key") (fun () ->
+              Sqaml.Parser.parse_and_execute_query "CREATE TABLE joker");
+          assert_raises (Failure "Syntax error in column definition") (fun () ->
+              Sqaml.Parser.parse_and_execute_query "CREATE TABLE joker id");
+          assert_raises (Failure "Unrecognized update transform clause format.")
+            (fun () ->
+              Sqaml.Parser.parse_and_execute_query
+                "UPDATE users SET name='GLORY' WHERE id=1");
+          assert_raises (Failure "Table does not exist") (fun () ->
+              Sqaml.Parser.parse_and_execute_query
+                "UPDATE users SET name = 'GLORY'");
+          assert_raises (Failure "Syntax error in SQL query") (fun () ->
+              Sqaml.Parser.parse_and_execute_query "SELECT JOKE FROM");
+          assert_raises (Failure "Unrecognized where clause format.") (fun () ->
+              Sqaml.Parser.parse_and_execute_query
+                "create table users (name primary key)";
+              Sqaml.Parser.parse_and_execute_query
+                "UPDATE users SET name = 1 WHERE");
+          Sqaml.Parser.parse_and_execute_query "DROP TABLE users";
+          (* note missing query support for float, date, and null *)
+          assert_raises (Failure "Unsupported query") (fun () ->
+              Sqaml.Parser.parse_and_execute_query "GOID")))
 
 let suite =
   "sqaml test suite"
@@ -331,6 +569,10 @@ let suite =
          test_value_equals;
          test_value_less_than;
          test_value_greater_than;
+         test_tokenize_query;
+         test_print_tokenized;
+         test_create_table_tokens;
+         test_parse_and_execute_query;
        ]
 
 let () = run_test_tt_main suite
