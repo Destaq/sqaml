@@ -27,14 +27,9 @@ let with_redirected_stdout f =
   let output = read_all_lines "" in
   output
 
-(** [with_tables f] is the result of executing [f] with the tables "test_table"
-    and "another_table" created. *)
-let with_tables f =
-  Sqaml.Database.drop_table "test_table";
-  Sqaml.Database.drop_table "another_table";
-  Sqaml.Database.drop_table "users";
-  Sqaml.Database.drop_table "another";
-  (* Create the tables *)
+(** [create_tables ()] creates two tables, "test_table" and "another_table",
+    for the global state. *)
+let create_tables () =
   Sqaml.Database.create_table
     [
       { name = "example"; col_type = Sqaml.Table.Int_type; primary_key = true };
@@ -58,28 +53,15 @@ let with_tables f =
   Sqaml.Database.create_table
     [ { name = "hi"; col_type = Sqaml.Table.Float_type; primary_key = true } ]
     "another_table";
-
-  (* Execute the provided function, ensuring that the tables are dropped afterwards *)
-  f ();
-
-  (* Drop the tables *)
-  Sqaml.Database.drop_table "test_table";
-  Sqaml.Database.drop_table "another_table";
-  Sqaml.Database.drop_table "users";
-  Sqaml.Database.drop_table "another";
   ()
 
 (** [as_test name f] is an OUnit test with name [name] that runs [f]. *)
 let as_test name f = name >:: fun _ -> f ()
 
-(** [with_no_tables f] is the result of executing [f] with no tables in the
-    database. *)
-let with_no_tables f =
+(** [drop_tables ()] drops all tables in the global state. *)
+let drop_tables () =
   Sqaml.Database.drop_table "test_table";
   Sqaml.Database.drop_table "another_table";
-  Sqaml.Database.drop_table "users";
-  Sqaml.Database.drop_table "another";
-  f ();
   ()
 
 (** [test_show_all_tables_with_no_tables] is an OUnit test that checks that
@@ -87,72 +69,78 @@ let with_no_tables f =
    database. *)
 let test_show_all_tables_with_no_tables =
   as_test "test_show_all_tables_with_no_tables" (fun () ->
-      with_no_tables (fun () ->
-          let output = with_redirected_stdout Sqaml.Database.show_all_tables in
-          let () = print_endline "GOING FOR IT" in
-          let () = print_endline output in
-          let () = print_int (String.length output) in
-          (* TODO: investigate why it doesn't always show no tables in database... *)
-          assert_bool "bad_show_no_tables"
-            (output = "No tables in database.\n" || String.length output = 0)))
+      drop_tables ();
+      let output = with_redirected_stdout Sqaml.Database.show_all_tables in
+      let () = print_endline "GOING FOR IT" in
+      let () = print_endline output in
+      let () = print_int (String.length output) in
+      (* TODO: investigate why it doesn't always show no tables in database... *)
+      assert_bool "bad_show_no_tables"
+        (output = "No tables in database.\n" || String.length output = 0))
 
 (** [test_show_all_tables_with_some_tables] is an OUnit test that checks that
    [show_all_tables] returns the correct output when there are some tables in the database. *)
 let test_show_all_tables_with_some_tables =
   as_test "test_show_all_tables_with_some_tables" (fun () ->
-      with_tables (fun () ->
-          let output = with_redirected_stdout Sqaml.Database.show_all_tables in
-          assert_equal ~printer:printer_wrapper
-            "Tables:\nanother_table\ntest_table\n" output))
+      create_tables ();
+      let output = with_redirected_stdout Sqaml.Database.show_all_tables in
+      assert_equal ~printer:printer_wrapper
+        "Tables:\nanother_table\ntest_table\n" output;
+      drop_tables ())
 
 (** [test_get_column_type_column_present] is an OUnit test that checks that
    [get_column_type] returns the correct column type when the column is present. *)
 let test_get_column_type_column_present =
   as_test "test_get_column_type_column_present" (fun () ->
-      with_tables (fun () ->
-          let output = Sqaml.Database.get_column_type "test_table" "example" in
-          assert_equal output Sqaml.Table.Int_type))
+      create_tables ();
+      let output = Sqaml.Database.get_column_type "test_table" "example" in
+      assert_equal output Sqaml.Table.Int_type;
+      drop_tables ())
 
 (** [test_get_column_type_table_absent] is an OUnit test that checks that [get_column_type]
     raises a custom Failure when the table is absent. *)
 let test_get_column_type_table_absent =
   as_test "test_get_column_type_table_absent" (fun () ->
-      with_tables (fun () ->
-          let failure_fun () =
-            Sqaml.Database.get_column_type "no_table" "nonexistent"
-          in
-          OUnit2.assert_raises (Failure "Table does not exist") failure_fun))
+      create_tables ();
+      let failure_fun () =
+        Sqaml.Database.get_column_type "no_table" "nonexistent"
+      in
+      OUnit2.assert_raises (Failure "Table does not exist") failure_fun;
+      drop_tables ())
 
 (** [test_get_column_type_column_absent] is an OUnit test that checks that [get_column_type]
     raises a custom Failure when the asked-for column is absent. *)
 let test_get_column_type_column_absent =
   as_test "test_get_column_type_column_absent" (fun () ->
-      with_tables (fun () ->
-          try
-            let _ = Sqaml.Database.get_column_type "test_table" "nonexistent" in
-            assert_failure
-              "Expected failure for nonexistent column, but got none."
-          with
-          | Failure msg ->
-              assert_equal ~printer:printer_wrapper "Column not found." msg
-          | _ ->
-              assert_failure
-                "Expected Failure exception, but got different exception."))
+      create_tables ();
+      try
+        let _ = Sqaml.Database.get_column_type "test_table" "nonexistent" in
+        drop_tables ();
+        assert_failure "Expected failure for nonexistent column, but got none."
+      with
+      | Failure msg ->
+          drop_tables ();
+          assert_equal ~printer:printer_wrapper "Column not found." msg
+      | _ ->
+          drop_tables ();
+          assert_failure
+            "Expected Failure exception, but got different exception.")
 
 (** [test_construct_transform_column_present] is an OUnit test that verifies
     the correctness of [Sqaml.Database.construct_transform], a row-updating function. *)
 let test_construct_transform_column_present =
   as_test "test_construct_transform_column_present" (fun () ->
-      with_tables (fun () ->
-          let updated_row =
-            Sqaml.Database.construct_transform
-              [ "example"; "example2"; "example3"; "example4" ]
-              [ Int 1; Date "2022-12-12"; Float 4.5; Null ]
-              "test_table"
-              { values = [ Int 0; Date "2022-12-12"; Float 4.5; Null ] }
-          in
-          assert_equal updated_row.values
-            [ Int 1; Date "2022-12-12"; Float 4.5; Null ]))
+      create_tables ();
+      let updated_row =
+        Sqaml.Database.construct_transform
+          [ "example"; "example2"; "example3"; "example4" ]
+          [ Int 1; Date "2022-12-12"; Float 4.5; Null ]
+          "test_table"
+          { values = [ Int 0; Date "2022-12-12"; Float 4.5; Null ] }
+      in
+      assert_equal updated_row.values
+        [ Int 1; Date "2022-12-12"; Float 4.5; Null ];
+      drop_tables ())
 
 (** [test_construct_transform_table_absent] is an OUnit test that verifies that
     [construct_transform] raises a custom Failure when the table is absent. *)
@@ -169,53 +157,55 @@ let test_construct_transform_table_absent =
     verifies the correctness of [Sqaml.Database.construct_predicate] instead. *)
 let test_construct_predicate_column_present =
   as_test "test_construct_predicate_column_present" (fun () ->
-      with_tables (fun () ->
-          let predicate =
-            Sqaml.Database.construct_predicate
-              [ "example"; "example2"; "example3"; "example4" ]
-              [ Int 1; Date "2022-12-12"; Float 4.5; Null ]
-              [ (fun (x : Sqaml.Row.value) (y : Sqaml.Row.value) -> x > y) ]
-              "test_table"
-          in
-          let result =
-            predicate { values = [ Int 0; Date "2022-12-12"; Float 4.5; Null ] }
-          in
-          assert_equal result false))
+      create_tables ();
+      let predicate =
+        Sqaml.Database.construct_predicate
+          [ "example"; "example2"; "example3"; "example4" ]
+          [ Int 1; Date "2022-12-12"; Float 4.5; Null ]
+          [ (fun (x : Sqaml.Row.value) (y : Sqaml.Row.value) -> x > y) ]
+          "test_table"
+      in
+      let result =
+        predicate { values = [ Int 0; Date "2022-12-12"; Float 4.5; Null ] }
+      in
+      assert_equal result false;
+      drop_tables ())
 
 (** [test_construct_predicate_table_absent] is an OUnit test that verifies that
     [construct_predicate] raises a custom Failure when the table is absent. *)
 let test_construct_predicate_table_absent =
   as_test "test_construct_predicate_table_absent" (fun () ->
-      with_no_tables (fun () ->
-          let predicate =
-            Sqaml.Database.construct_predicate [ "example" ] [ Int 1 ]
-              [ (fun (x : Sqaml.Row.value) (y : Sqaml.Row.value) -> x > y) ]
-              "asdfsdfsdf"
-          in
-          assert_raises (Failure "Table does not exist") (fun () ->
-              predicate { values = [ Int 0 ] })))
+      drop_tables ();
+      let predicate =
+        Sqaml.Database.construct_predicate [ "example" ] [ Int 1 ]
+          [ (fun (x : Sqaml.Row.value) (y : Sqaml.Row.value) -> x > y) ]
+          "asdfsdfsdf"
+      in
+      assert_raises (Failure "Table does not exist") (fun () ->
+          predicate { values = [ Int 0 ] }))
 
 (** [test_insert_row_table_exists] is an OUnit test that checks that
     [Sqaml.Database.insert_row] correctly inserts a row into a table that
     exists. *)
 let test_insert_row_table_exists =
   as_test "test_insert_row_table_exists" (fun () ->
-      with_tables (fun () ->
-          let values = [ "17"; "2022-12-12"; "4.5"; "null" ] in
-          let output =
-            with_redirected_stdout (fun () ->
-                Sqaml.Database.insert_row "test_table"
-                  [ "example"; "example2"; "example3"; "example4" ]
-                  values;
-                Sqaml.Database.delete_rows "test_table" (fun _ -> true))
-          in
-          assert_equal ~printer:printer_wrapper
-            "example: int\n\
-             example2: date\n\
-             example3: float\n\
-             example4: null\n\
-             17 2022-12-12 4.500000 NULL \n"
-            output))
+      create_tables ();
+      let values = [ "17"; "2022-12-12"; "4.5"; "null" ] in
+      let output =
+        with_redirected_stdout (fun () ->
+            Sqaml.Database.insert_row "test_table"
+              [ "example"; "example2"; "example3"; "example4" ]
+              values;
+            Sqaml.Database.delete_rows "test_table" (fun _ -> true))
+      in
+      assert_equal ~printer:printer_wrapper
+        "example: int\n\
+         example2: date\n\
+         example3: float\n\
+         example4: null\n\
+         17 2022-12-12 4.500000 NULL \n"
+        output;
+      drop_tables ())
 
 (** [test_insert_row_table_absent] is an OUnit test that checks that
     [Sqaml.Database.insert_row] raises a custom Failure when the table does
@@ -233,122 +223,120 @@ let test_insert_row_table_absent =
     already exists. *)
 let test_create_table_already_exists =
   as_test "test_create_table_already_exists" (fun () ->
-      with_tables (fun () ->
-          let create_table () =
-            Sqaml.Database.create_table
-              [
-                {
-                  name = "example";
-                  col_type = Sqaml.Table.Int_type;
-                  primary_key = true;
-                };
-              ]
-              "test_table"
-          in
-          assert_raises (Failure "Table already exists") create_table))
+      create_tables ();
+      let create_table () =
+        Sqaml.Database.create_table
+          [
+            {
+              name = "example";
+              col_type = Sqaml.Table.Int_type;
+              primary_key = true;
+            };
+          ]
+          "test_table"
+      in
+      assert_raises (Failure "Table already exists") create_table;
+      drop_tables ())
 
 (** [test_delete_rows_nonexistent_table] is an OUnit test that checks that
     [Sqaml.Database.delete_rows] raises a custom Failure when the table does
     not exist. *)
 let test_delete_rows_nonexistent_table =
   as_test "test_delete_rows_nonexistent_table" (fun () ->
-      with_no_tables (fun () ->
-          let delete_rows () =
-            Sqaml.Database.delete_rows "nonexistent" (fun _ -> true)
-          in
-          assert_raises (Failure "Table does not exist") delete_rows))
+      drop_tables ();
+      let delete_rows () =
+        Sqaml.Database.delete_rows "nonexistent" (fun _ -> true)
+      in
+      assert_raises (Failure "Table does not exist") delete_rows)
 
 (** [test_update_rows_nonexistent_table] is an OUnit test that checks that
     [Sqaml.Database.update_rows] raises a custom Failure when the table does
     not exist. *)
 let test_update_rows_nonexistent_table =
   as_test "test_update_rows_nonexistent_table" (fun () ->
-      with_no_tables (fun () ->
-          let update () =
-            Sqaml.Database.update_rows "example"
-              (fun _ -> true)
-              (fun _ -> { values = [ Int 1 ] })
-          in
-          assert_raises (Failure "Table does not exist") update))
+      drop_tables ();
+      let update () =
+        Sqaml.Database.update_rows "example"
+          (fun _ -> true)
+          (fun _ -> { values = [ Int 1 ] })
+      in
+      assert_raises (Failure "Table does not exist") update)
 
 (** [test_normal_update_rows] is an OUnit test that checks that
     [Sqaml.Database.update_rows] correctly updates rows in a table. *)
 let test_normal_update_rows =
   as_test "test_normal_update_rows" (fun () ->
-      with_tables (fun () ->
-          Sqaml.Database.insert_row "test_table" [ "example" ] [ "0" ];
-          let output =
-            with_redirected_stdout (fun () ->
-                Sqaml.Database.update_rows "test_table"
-                  (fun row -> row.values = [ Int 0 ])
-                  (fun _ -> { values = [ Int 1 ] });
-                Sqaml.Database.select_all "test_table")
-          in
-          assert_equal ~printer:printer_wrapper "1 \n" output))
+      create_tables ();
+      Sqaml.Database.insert_row "test_table" [ "example" ] [ "0" ];
+      let output =
+        with_redirected_stdout (fun () ->
+            Sqaml.Database.update_rows "test_table"
+              (fun row -> row.values = [ Int 0 ])
+              (fun _ -> { values = [ Int 1 ] });
+            Sqaml.Database.select_all "test_table")
+      in
+      assert_equal ~printer:printer_wrapper "1 \n" output;
+      drop_tables ())
 
 (** [test_missing_select_all_table] is an OUnit test that checks that
     [Sqaml.Database.select_all] raises a custom Failure when the table does
     not exist. *)
 let test_missing_select_all_table =
   as_test "test_missing_select_all_table" (fun () ->
-      with_no_tables (fun () ->
-          let select_all () = Sqaml.Database.select_all "nonexistent" in
-          assert_raises (Failure "Table does not exist") select_all))
+      drop_tables ();
+      let select_all () = Sqaml.Database.select_all "nonexistent" in
+      assert_raises (Failure "Table does not exist") select_all)
 
 (** [test_print_table] serves to see if [Sqaml.Database.print_table] prints
     the correct representation of some table, with its type and data. *)
 let test_print_table =
   as_test "test_normal_update_rows" (fun () ->
-      with_tables (fun () ->
-          Sqaml.Database.insert_row "test_table" [ "example" ] [ "0" ];
-          let output =
-            with_redirected_stdout (fun () ->
-                Sqaml.Database.update_rows "test_table"
-                  (fun row -> row.values = [ Int 0 ])
-                  (fun _ -> { values = [ Int 1 ] });
-                Sqaml.Database.print_table "test_table")
-          in
-          assert_equal ~printer:printer_wrapper
-            "example: int\n\
-             example2: date\n\
-             example3: float\n\
-             example4: null\n\
-             1 \n"
-            output))
+      create_tables ();
+      Sqaml.Database.insert_row "test_table" [ "example" ] [ "0" ];
+      let output =
+        with_redirected_stdout (fun () ->
+            Sqaml.Database.update_rows "test_table"
+              (fun row -> row.values = [ Int 0 ])
+              (fun _ -> { values = [ Int 1 ] });
+            Sqaml.Database.print_table "test_table")
+      in
+      assert_equal ~printer:printer_wrapper
+        "example: int\nexample2: date\nexample3: float\nexample4: null\n1 \n"
+        output;
+      drop_tables ())
 
 (** [test_print_nonexistent_table] is an OUnit test that checks that
     [Sqaml.Database.print_table] raises a custom Failure when the table does
     not exist. *)
 let test_print_nonexistent_table =
   as_test "test_print_nonexistent_table" (fun () ->
-      with_no_tables (fun () ->
-          let print_table () = Sqaml.Database.print_table "nonexistent" in
-          assert_raises (Failure "Table does not exist") print_table))
+      drop_tables ();
+      let print_table () = Sqaml.Database.print_table "nonexistent" in
+      assert_raises (Failure "Table does not exist") print_table)
 
 (** [test_select_rows] is an OUnit test that checks that [Sqaml.Database.select_rows]
     returns the correct rows when the table exists. *)
 let test_select_rows =
   as_test "test_select_rows" (fun () ->
-      with_tables (fun () ->
-          Sqaml.Database.insert_row "test_table"
-            [ "example"; "example2"; "example3"; "example4" ]
-            [ "0"; "2022-12-12"; "4.5"; "null" ];
-          assert_equal
-            (Sqaml.Database.select_rows "test_table" [ "example" ] (fun _ ->
-                 true))
-            [ { values = [ Int 0 ] } ]))
+      create_tables ();
+      Sqaml.Database.insert_row "test_table"
+        [ "example"; "example2"; "example3"; "example4" ]
+        [ "0"; "2022-12-12"; "4.5"; "null" ];
+      assert_equal
+        (Sqaml.Database.select_rows "test_table" [ "example" ] (fun _ -> true))
+        [ { values = [ Int 0 ] } ];
+      drop_tables ())
 
 (** [test_select_rows_nonexistent_table] is an OUnit test that checks that
     [Sqaml.Database.select_rows] raises a custom Failure when the table does
     not exist. *)
 let test_select_rows_nonexistent_table =
   as_test "test_select_rows_nonexistent_table" (fun () ->
-      with_no_tables (fun () ->
-          let select_rows () =
-            Sqaml.Database.select_rows "nonexistent" [ "example" ] (fun _ ->
-                true)
-          in
-          assert_raises (Failure "Table does not exist") select_rows))
+      drop_tables ();
+      let select_rows () =
+        Sqaml.Database.select_rows "nonexistent" [ "example" ] (fun _ -> true)
+      in
+      assert_raises (Failure "Table does not exist") select_rows)
 
 (** [test_print_value] is an OUnit test that checks that [Sqaml.Row.print_value]
     prints the correct representation of a value, for all value types. *)
@@ -523,105 +511,102 @@ let test_create_table_tokens =
     verifies the functionality of 90+% of all possible SQL queries or failed inputs.*)
 let test_parse_and_execute_query =
   as_test "test_parse_and_execute_query" (fun () ->
-      with_no_tables (fun () ->
-          let output_create =
-            with_redirected_stdout (fun () ->
-                Sqaml.Parser.parse_and_execute_query
-                  "CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR, age \
-                   INT)")
-          in
-          assert_equal ~printer:printer_wrapper
-            "id: int\nname: varchar\nage: int\n" output_create;
-          let output_create2 =
-            with_redirected_stdout (fun () ->
-                Sqaml.Parser.parse_and_execute_query
-                  "CREATE TABLE another (auto PRIMARY KEY)")
-          in
-          assert_equal ~printer:printer_wrapper "auto: int\n" output_create2;
+      drop_tables ();
+      let output_create =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query
+              "CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR, age INT)")
+      in
+      assert_equal ~printer:printer_wrapper "id: int\nname: varchar\nage: int\n"
+        output_create;
+      let output_create2 =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query
+              "CREATE TABLE another (auto PRIMARY KEY)")
+      in
+      assert_equal ~printer:printer_wrapper "auto: int\n" output_create2;
 
-          Sqaml.Parser.parse_and_execute_query "DROP TABLE another";
+      Sqaml.Parser.parse_and_execute_query "DROP TABLE another";
 
-          let output_insert =
-            with_redirected_stdout (fun () ->
-                Sqaml.Parser.parse_and_execute_query
-                  "INSERT INTO users (id, name, age) VALUES (1, 'Simon', 25)")
-          in
-          assert_equal ~printer:printer_wrapper
-            "id: int\nname: varchar\nage: int\n1 'Simon' 25"
-            (String.trim output_insert);
+      let output_insert =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query
+              "INSERT INTO users (id, name, age) VALUES (1, 'Simon', 25)")
+      in
+      assert_equal ~printer:printer_wrapper
+        "id: int\nname: varchar\nage: int\n1 'Simon' 25"
+        (String.trim output_insert);
 
-          let output_select =
-            with_redirected_stdout (fun () ->
-                Sqaml.Parser.parse_and_execute_query "SELECT * FROM users")
-          in
-          assert_equal ~printer:printer_wrapper "1 'Simon' 25"
-            (String.trim output_select);
+      let output_select =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query "SELECT * FROM users")
+      in
+      assert_equal ~printer:printer_wrapper "1 'Simon' 25"
+        (String.trim output_select);
 
-          let output_update =
-            with_redirected_stdout (fun () ->
-                Sqaml.Parser.parse_and_execute_query
-                  "UPDATE users SET name = 'Clarkson' WHERE id = 1")
-          in
-          assert_equal ~printer:printer_wrapper "" output_update;
-          let output_select_updated =
-            with_redirected_stdout (fun () ->
-                Sqaml.Parser.parse_and_execute_query "SELECT * FROM users")
-          in
-          assert_equal ~printer:printer_wrapper "1 'Clarkson' 25"
-            (String.trim output_select_updated);
+      let output_update =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query
+              "UPDATE users SET name = 'Clarkson' WHERE id = 1")
+      in
+      assert_equal ~printer:printer_wrapper "" output_update;
+      let output_select_updated =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query "SELECT * FROM users")
+      in
+      assert_equal ~printer:printer_wrapper "1 'Clarkson' 25"
+        (String.trim output_select_updated);
 
-          let output_delete =
-            with_redirected_stdout (fun () ->
-                Sqaml.Parser.parse_and_execute_query
-                  "DELETE FROM users WHERE id = 1 AND name = 'Clarkson'")
-          in
-          assert_equal ~printer:printer_wrapper "" output_delete;
-          let output_select_deleted =
-            with_redirected_stdout (fun () ->
-                Sqaml.Parser.parse_and_execute_query "SELECT * FROM users")
-          in
-          assert_equal ~printer:printer_wrapper "" output_select_deleted;
-          let output_delete_all =
-            with_redirected_stdout (fun () ->
-                Sqaml.Parser.parse_and_execute_query "DELETE FROM users")
-          in
-          assert_equal ~printer:printer_wrapper "" output_delete_all;
+      let output_delete =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query
+              "DELETE FROM users WHERE id = 1 AND name = 'Clarkson'")
+      in
+      assert_equal ~printer:printer_wrapper "" output_delete;
+      let output_select_deleted =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query "SELECT * FROM users")
+      in
+      assert_equal ~printer:printer_wrapper "" output_select_deleted;
+      let output_delete_all =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query "DELETE FROM users")
+      in
+      assert_equal ~printer:printer_wrapper "" output_delete_all;
 
-          let output_drop =
-            with_redirected_stdout (fun () ->
-                Sqaml.Parser.parse_and_execute_query "DROP TABLE users")
-          in
-          assert_equal ~printer:printer_wrapper "" output_drop;
-          let output_show =
-            with_redirected_stdout (fun () ->
-                Sqaml.Parser.parse_and_execute_query "SHOW TABLES")
-          in
-          assert_equal ~printer:printer_wrapper "No tables in database.\n"
-            output_show;
-          assert_raises (Failure "Syntax error in column definition") (fun () ->
-              Sqaml.Parser.parse_and_execute_query "INSERT INTO 12144");
-          assert_raises (Failure "Table must have a primary key") (fun () ->
-              Sqaml.Parser.parse_and_execute_query "CREATE TABLE joker");
-          assert_raises (Failure "Syntax error in column definition") (fun () ->
-              Sqaml.Parser.parse_and_execute_query "CREATE TABLE joker id");
-          assert_raises (Failure "Unrecognized update transform clause format.")
-            (fun () ->
-              Sqaml.Parser.parse_and_execute_query
-                "UPDATE users SET name='GLORY' WHERE id=1");
-          assert_raises (Failure "Table does not exist") (fun () ->
-              Sqaml.Parser.parse_and_execute_query
-                "UPDATE users SET name = 'GLORY'");
-          assert_raises (Failure "Syntax error in SQL query") (fun () ->
-              Sqaml.Parser.parse_and_execute_query "SELECT JOKE FROM");
-          assert_raises (Failure "Unrecognized where clause format.") (fun () ->
-              Sqaml.Parser.parse_and_execute_query
-                "create table users (name primary key)";
-              Sqaml.Parser.parse_and_execute_query
-                "UPDATE users SET name = 1 WHERE");
-          Sqaml.Parser.parse_and_execute_query "DROP TABLE users";
-          (* note missing query support for float, date, and null *)
-          assert_raises (Failure "Unsupported query") (fun () ->
-              Sqaml.Parser.parse_and_execute_query "GOID")))
+      let output_drop =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query "DROP TABLE users")
+      in
+      assert_equal ~printer:printer_wrapper "" output_drop;
+      let output_show =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query "SHOW TABLES")
+      in
+      assert_equal ~printer:printer_wrapper "No tables in database.\n"
+        output_show;
+      assert_raises (Failure "Syntax error in column definition") (fun () ->
+          Sqaml.Parser.parse_and_execute_query "INSERT INTO 12144");
+      assert_raises (Failure "Table must have a primary key") (fun () ->
+          Sqaml.Parser.parse_and_execute_query "CREATE TABLE joker");
+      assert_raises (Failure "Syntax error in column definition") (fun () ->
+          Sqaml.Parser.parse_and_execute_query "CREATE TABLE joker id");
+      assert_raises (Failure "Unrecognized update transform clause format.")
+        (fun () ->
+          Sqaml.Parser.parse_and_execute_query
+            "UPDATE users SET name='GLORY' WHERE id=1");
+      assert_raises (Failure "Table does not exist") (fun () ->
+          Sqaml.Parser.parse_and_execute_query "UPDATE users SET name = 'GLORY'");
+      assert_raises (Failure "Syntax error in SQL query") (fun () ->
+          Sqaml.Parser.parse_and_execute_query "SELECT JOKE FROM");
+      assert_raises (Failure "Unrecognized where clause format.") (fun () ->
+          Sqaml.Parser.parse_and_execute_query
+            "create table users (name primary key)";
+          Sqaml.Parser.parse_and_execute_query "UPDATE users SET name = 1 WHERE");
+      Sqaml.Parser.parse_and_execute_query "DROP TABLE users";
+      (* note missing query support for float, date, and null *)
+      assert_raises (Failure "Unsupported query") (fun () ->
+          Sqaml.Parser.parse_and_execute_query "GOID"))
 
 (** [suite] is the test suite for the SQamL module. *)
 let suite =
