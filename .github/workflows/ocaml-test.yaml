@@ -2,8 +2,6 @@ name: OCaml Dune Test
 
 on:
     push:
-        branches:
-            - main
     pull_request:
         branches:
             - main
