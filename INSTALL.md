@@ -56,6 +56,8 @@ Enter an SQL command (or 'exit' to quit):
 
 ## Documentation
 
+*TODO: update with new SQL commands and examples.*
+
 We currently support the following SQL commands using regular MySQL syntax.
 
 -   `CREATE TABLE`

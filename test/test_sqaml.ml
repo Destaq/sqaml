@@ -549,6 +549,15 @@ let test_parse_and_execute_query =
         "id: int\nname: varchar\nage: int\n1 'Simon' 25"
         (String.trim output_insert);
 
+      let output_show =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query
+              "SHOW COLUMNS FROM users")
+      in
+      assert_equal ~printer:printer_wrapper
+        "id : Integer |name : Varchar |age : Integer |"
+        (String.trim output_show);
+
       let output_select =
         with_redirected_stdout (fun () ->
             Sqaml.Parser.parse_and_execute_query "SELECT * FROM users")
