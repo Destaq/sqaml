@@ -13,6 +13,27 @@ let show_all_tables () =
     List.iter (fun name -> print_string (name ^ "\n")) table_names
   else print_string "No tables in database.\n"
 
+(**Get primary key field from a table.*)
+let get_pk_field table =
+  if not (Hashtbl.mem tables table) then failwith "Table does not exist"
+  else
+    let table_ref = Hashtbl.find tables table in
+    get_table_pk_field !table_ref
+
+(**Check primary key uniqueness*)
+let check_pk_uniqueness table pk_field pk_value =
+  if not (Hashtbl.mem tables table) then failwith "Table does not exist"
+  else
+    let table_ref = Hashtbl.find tables table in
+    check_for_pk_value !table_ref pk_field pk_value
+
+(**Get all columns from a table.*)
+let get_table_columns table include_type =
+  if not (Hashtbl.mem tables table) then failwith "Table does not exist"
+  else
+    let table_ref = Hashtbl.find tables table in
+    get_columns_lst !table_ref include_type
+
 (**Get column type from table name*)
 let get_column_type table column =
   if not (Hashtbl.mem tables table) then failwith "Table does not exist"
@@ -70,11 +91,18 @@ let delete_rows table predicate =
     delete_rows !table_ref predicate
 
 (* Function to select rows from a table *)
-let select_rows table fields predicate =
+let select_rows table fields predicate order_col =
   if not (Hashtbl.mem tables table) then failwith "Table does not exist"
   else
     let table_ref = Hashtbl.find tables table in
-    select_rows !table_ref fields predicate
+    let selected_rows =
+      if List.length fields = 1 && List.hd fields = "*" then
+        select_rows_table !table_ref
+          (get_columns_lst !table_ref false)
+          predicate order_col
+      else select_rows_table !table_ref fields predicate order_col
+    in
+    selected_rows
 
 let select_all table =
   if not (Hashtbl.mem tables table) then failwith "Table does not exist"
@@ -89,3 +117,8 @@ let print_table table =
   else
     let table_ref = Hashtbl.find tables table in
     print_table !table_ref
+
+(**Compare two rows based on column name.*)
+let sorter table col_ind r1 r2 =
+  if not (Hashtbl.mem tables table) then failwith "Table does not exist"
+  else compare_row col_ind r1 r2

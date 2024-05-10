@@ -23,7 +23,8 @@ let tokenize_query query =
           | "PRIMARY" -> PrimaryKey
           | "KEY" -> PrimaryKey
           | "TABLE" | "TABLES" | "CREATE" | "INSERT" | "INTO" | "SELECT"
-          | "SHOW" | "DROP" | "WHERE" ->
+          | "SHOW" | "DROP" | "WHERE" | "UPDATE" | "SET" | "FROM" | "AND"
+          | "ORDER" | "BY" | "LIMIT" | "COLUMNS" ->
               Identifier (String.uppercase_ascii hd)
           | _ -> Identifier hd
         in
@@ -33,12 +34,28 @@ let tokenize_query query =
   |> List.filter (fun s -> s <> "")
   |> tokenize []
 
+let check_column_order table_name columns =
+  let actual_cols = get_table_columns table_name false in
+  let rec check_equiv l1 l2 =
+    match (l1, l2) with
+    | h1 :: t1, h2 :: t2 ->
+        if h1 = h2 then check_equiv t1 t2
+        else failwith "Improper columns or order provided for insert."
+    | [], [] -> ()
+    | _ -> failwith "Incorrect number of columns provided."
+  in
+  check_equiv actual_cols columns
+
 let parse_create_table tokens =
   let rec parse_columns acc = function
     | [] -> List.rev acc
     | Identifier name :: IntKeyword :: PrimaryKey :: PrimaryKey :: tl ->
         parse_columns
           ({ name; col_type = Int_type; primary_key = true } :: acc)
+          tl
+    | Identifier name :: VarcharKeyword :: PrimaryKey :: PrimaryKey :: tl ->
+        parse_columns
+          ({ name; col_type = Varchar_type; primary_key = true } :: acc)
           tl
     | Identifier name :: IntKeyword :: tl ->
         parse_columns
@@ -74,15 +91,21 @@ let parse_create_table tokens =
       create_table columns _table_name
   | Identifier "INSERT" :: Identifier "INTO" :: Identifier _table_name :: tl ->
       let columns, row_values = parse_values [] tl in
+      let () = check_column_order _table_name columns in
       let row_values, _ = parse_values [] row_values in
-      insert_row _table_name columns row_values
-  | [
-   Identifier "SELECT";
-   Identifier "*";
-   Identifier "FROM";
-   Identifier _table_name;
-  ] ->
-      select_all _table_name
+      let pk_field = get_pk_field _table_name in
+
+      if Option.is_some pk_field then
+        let pk_field = Option.get pk_field in
+        let () =
+          check_pk_uniqueness _table_name pk_field.name
+            (Table.convert_to_value pk_field.col_type
+               (List.nth row_values
+                  (Option.get
+                     (List.find_index (fun c -> c = pk_field.name) columns))))
+        in
+        insert_row _table_name columns row_values
+      else insert_row _table_name columns row_values
   | _ -> raise (Failure "Syntax error in SQL query")
 
 let rec includes_where_clause tokens =
@@ -158,7 +181,6 @@ let construct_transform_params table_name update_tokens =
   in
   construct_transform_aux update_tokens [] []
 
-(**Need to fix first transform line*)
 let parse_update_table table_name update_tokens =
   let transform_columns_lst, transform_values_lst =
     construct_transform_params table_name update_tokens
@@ -185,6 +207,103 @@ let parse_delete_records table_name delete_tokens =
     delete_rows table_name pred
   else delete_rows table_name (fun _ -> true)
 
+let rec parse_select_query_fields tokens acc =
+  match tokens with
+  | [] -> failwith "Please include fields in your query."
+  | h :: t -> (
+      match h with
+      | Identifier cur_tok ->
+          if cur_tok = "FROM" then
+            ( acc,
+              match List.hd t with
+              | Identifier _tb_name -> _tb_name
+              | _ -> failwith "No table name detected." )
+          else parse_select_query_fields t (h :: acc)
+      | _ ->
+          failwith "Non-identifier detected whil parsing select query fields.")
+
+let rec extract_column_names fields =
+  match fields with
+  | [] -> []
+  | h :: t -> (
+      match h with
+      | Identifier cur_tok ->
+          if cur_tok <> "," then cur_tok :: extract_column_names t
+          else extract_column_names t
+      | _ -> failwith "Non-identifier detected in column list.")
+
+let rec get_limit_info select_tokens =
+  match select_tokens with
+  | Identifier "LIMIT" :: Identifier lim :: _ -> (true, int_of_string lim)
+  | _ :: t -> get_limit_info t
+  | [] -> (false, 0)
+
+let rec get_order_by_info select_tokens =
+  match select_tokens with
+  | Identifier "ORDER"
+    :: Identifier "BY"
+    :: Identifier col
+    :: Identifier dir
+    :: _ ->
+      let dir = String.uppercase_ascii dir in
+      if dir = "ASC" || dir = "DESC" then (true, col, dir)
+      else failwith "Order by direction not provided."
+  | _ :: t -> get_order_by_info t
+  | _ -> (false, "", "")
+
+let rec take n xs =
+  match n with 0 -> [] | _ -> List.hd xs :: take (n - 1) (List.tl xs)
+
+let construct_sorter table_name column_ind r1 r2 =
+  sorter table_name column_ind r1 r2
+
+let parse_select_records select_tokens =
+  let ordered, order_column, order_dir = get_order_by_info select_tokens in
+  let limited, limit = get_limit_info select_tokens in
+  let selected_fields, table_name =
+    parse_select_query_fields select_tokens []
+  in
+  let selected_fields = extract_column_names selected_fields in
+  let () =
+    if order_column <> "" && not (List.mem order_column selected_fields) then
+      failwith "Order column is not present in field list."
+    else ()
+  in
+  let () =
+    if List.length selected_fields = 0 then
+      failwith "No proper fields selected in query."
+    else ()
+  in
+  let has_where, where_clause = includes_where_clause select_tokens in
+  let order_ind, selected_rows =
+    if has_where then
+      let columns_lst, values_lst, ops_lst =
+        construct_predicate_params table_name where_clause
+      in
+      let pred =
+        construct_predicate columns_lst values_lst ops_lst table_name
+      in
+      select_rows table_name selected_fields pred order_column
+    else select_rows table_name selected_fields (fun _ -> true) order_column
+  in
+  let selected_rows =
+    if ordered && Option.is_some order_ind then
+      if order_dir = "DESC" then
+        List.rev
+          (List.sort
+             (construct_sorter table_name (Option.get order_ind))
+             selected_rows)
+      else
+        List.sort
+          (construct_sorter table_name (Option.get order_ind))
+          selected_rows
+    else selected_rows
+  in
+  let selected_rows =
+    if limited then take limit selected_rows else selected_rows
+  in
+  List.iter (fun row -> Row.print_row row) selected_rows
+
 let replace_all str old_substring new_substring =
   let rec replace_helper str old_substring new_substring start_pos =
     try
@@ -204,15 +323,35 @@ let replace_all str old_substring new_substring =
   in
   replace_helper str old_substring new_substring 0
 
+(**Print out string list [lst], with each element separated by [sep].*)
+let rec print_string_list lst sep =
+  match lst with
+  | [] -> ()
+  | h :: t ->
+      let () = print_string (h ^ sep) in
+      print_string_list t sep
+
 let parse_query query =
   let query = replace_all query "," " , " in
   let query = replace_all query "(" " ( " in
   let query = replace_all query ")" " ) " in
+  let query = replace_all query "`" "" in
+  let query = replace_all query "'" "" in
+  let query = replace_all query "\"" "" in
+  let query = replace_all query "\n" "" in
+  let query = replace_all query "\r" "" in
   let tokens = tokenize_query query in
   match tokens with
   | Identifier "CREATE" :: Identifier "TABLE" :: _ -> parse_create_table tokens
+  | Identifier "SHOW"
+    :: Identifier "COLUMNS"
+    :: Identifier "FROM"
+    :: Identifier _table_name
+    :: _ ->
+      print_string_list (get_table_columns _table_name true) "|";
+      print_string "\n"
   | Identifier "INSERT" :: Identifier "INTO" :: _ -> parse_create_table tokens
-  | Identifier "SELECT" :: _ -> parse_create_table tokens
+  | Identifier "SELECT" :: select_tokens -> parse_select_records select_tokens
   | Identifier "SHOW" :: Identifier "TABLES" :: _ -> show_all_tables ()
   | Identifier "DROP" :: Identifier "TABLE" :: Identifier _table_name :: _ ->
       drop_table _table_name

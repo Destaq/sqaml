@@ -10,6 +10,38 @@ type column_type =
 type column = { name : string; col_type : column_type; primary_key : bool }
 type table = { columns : column list; mutable rows : row list }
 
+(**Convert column type to string.*)
+let column_type_to_str c =
+  match c with
+  | Int_type -> "Integer"
+  | Varchar_type -> "Varchar"
+  | Float_type -> "Float"
+  | Date_type -> "Date"
+  | Null_type -> "Null"
+
+(**Get primary key field in a table.*)
+let get_table_pk_field tb =
+  let rec check_fields lst =
+    match lst with
+    | [] -> None
+    | h :: t -> if h.primary_key then Some h else check_fields t
+  in
+  check_fields tb.columns
+
+(**Get string list of all columns in table.*)
+let get_columns_lst table include_type =
+  let rec extract_column_names lst =
+    match lst with
+    | [] -> []
+    | h :: t ->
+        (h.name
+        ^
+        if include_type then " : " ^ column_type_to_str h.col_type ^ " " else ""
+        )
+        :: extract_column_names t
+  in
+  extract_column_names table.columns
+
 (**Get type of a column*)
 let get_column_type table col_name =
   let rec get_column_type_aux columns name =
@@ -44,6 +76,33 @@ let construct_row_map table row_data =
     in
     let _ = build_map_aux column_names row_data.values in
     row_map
+
+(**Check for primary key existence.*)
+let check_for_pk_value table pk_field pk_value =
+  let rec check_rows_for_pk rows =
+    match rows with
+    | [] -> ()
+    | cur_row :: t ->
+        let row_map = construct_row_map table cur_row in
+        if Row.value_equals (Hashtbl.find row_map pk_field) pk_value then
+          failwith "Primary key already exists in the table."
+        else check_rows_for_pk t
+  in
+  check_rows_for_pk table.rows
+
+(**Function to sort a row list according to a field.*)
+let compare_row column_ind r1 r2 =
+  if
+    Row.value_greater_than
+      (List.nth r1.values column_ind)
+      (List.nth r2.values column_ind)
+  then 1
+  else if
+    Row.value_equals
+      (List.nth r1.values column_ind)
+      (List.nth r2.values column_ind)
+  then 0
+  else -1
 
 (**Get correct value.*)
 let rec get_new_value_from_transform columns_lst values_lst column =
@@ -120,14 +179,23 @@ let update_rows table pred f =
 let delete_rows table pred =
   table.rows <- List.filter (fun r -> not (pred r)) table.rows
 
-let select_rows table column_names pred =
+let select_rows_table table column_names pred order_column =
   let columns =
     List.map
       (fun name ->
         match List.find_opt (fun c -> c.name = name) table.columns with
         | Some c -> c
-        | None -> failwith "Column does not exist")
+        | None ->
+            let () = print_string name in
+            failwith "Column does not exist")
       column_names
+  in
+  let order_column_ind =
+    if order_column <> "" then
+      List.find_index
+        (fun c -> c.name = order_column)
+        (List.filter (fun c -> List.mem c columns) table.columns)
+    else (None : int option)
   in
   let filter_row row =
     let filtered_values =
@@ -137,7 +205,7 @@ let select_rows table column_names pred =
     in
     { values = filtered_values }
   in
-  List.filter pred (List.map filter_row table.rows)
+  (order_column_ind, List.filter pred (List.map filter_row table.rows))
 
 let select_all table = table.rows
 

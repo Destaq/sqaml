@@ -323,8 +323,10 @@ let test_select_rows =
         [ "example"; "example2"; "example3"; "example4" ]
         [ "0"; "2022-12-12"; "4.5"; "null" ];
       assert_equal
-        (Sqaml.Database.select_rows "test_table" [ "example" ] (fun _ -> true))
-        [ { values = [ Int 0 ] } ];
+        (Sqaml.Database.select_rows "test_table" [ "example" ]
+           (fun _ -> true)
+           "")
+        (None, [ { values = [ Int 0 ] } ]);
       drop_tables ())
 
 (** [test_select_rows_nonexistent_table] is an OUnit test that checks that
@@ -334,7 +336,9 @@ let test_select_rows_nonexistent_table =
   as_test "test_select_rows_nonexistent_table" (fun () ->
       drop_tables ();
       let select_rows () =
-        Sqaml.Database.select_rows "nonexistent" [ "example" ] (fun _ -> true)
+        Sqaml.Database.select_rows "nonexistent" [ "example" ]
+          (fun _ -> true)
+          ""
       in
       assert_raises (Failure "Table does not exist") select_rows)
 

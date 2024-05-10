@@ -24,9 +24,17 @@ val construct_predicate :
   row ->
   bool
 
+val get_columns_lst : table -> bool -> string list
 val construct_row_map : table -> row -> (string, value) Hashtbl.t
 val convert_to_value : column_type -> string -> value
 val get_column_type : table -> string -> column_type
+val compare_row : int -> row -> row -> int
+
+val get_table_pk_field : table -> column option
+(**[get_pk_field] returns the primary key field in a table.*)
+
+val check_for_pk_value : table -> string -> value -> unit
+(**[check_for_pk_value] checks for uniqueness of primary key in a table.*)
 
 val create_table : column list -> table
 (** [create_table cl] creates a new table with the columns in [cl]. *)
@@ -40,7 +48,8 @@ val update_rows : table -> (row -> bool) -> (row -> row) -> unit
 val delete_rows : table -> (row -> bool) -> unit
 (** Delete rows based on a predicate. *)
 
-val select_rows : table -> string list -> (row -> bool) -> row list
+val select_rows_table :
+  table -> string list -> (row -> bool) -> string -> int option * row list
 (** Select rows based on a predicate. *)
 
 val print_table : table -> unit
