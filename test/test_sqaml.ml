@@ -262,6 +262,24 @@ let test_update_rows_nonexistent_table =
       in
       assert_raises (Failure "Table does not exist") update)
 
+(**[test_for_pk_value] tests for uniqueness of the primary key*)
+let test_for_pk_value = 
+  as_test "test_for_pk_value" (fun () ->
+    create_tables ();
+    assert_equal
+    ()  (* Expected value *)
+    (Sqaml.Database.check_pk_uniqueness "test_table" "example" (Int 0));
+    drop_tables ();
+  )
+  let failed_test_for_pk_value  =
+   as_test "test_for_failed_pk_value" (fun () ->
+    create_tables ();
+    Sqaml.Database.insert_row "test_table" [ "example" ] [ "0" ];
+    assert_raises
+      (Failure "Primary key already exists in the table.")
+      (fun () -> Sqaml.Database.check_pk_uniqueness "test_table" "example" (Int 0));
+    drop_tables ();)
+
 (** [test_normal_update_rows] is an OUnit test that checks that
     [Sqaml.Database.update_rows] correctly updates rows in a table. *)
 let test_normal_update_rows =
@@ -651,7 +669,7 @@ let test_parse_and_execute_query =
         [ "example"; "example2"; "example3"; "example4" ]
         [ "0"; "2022-12-12"; "4.5"; "null" ];
       Sqaml.Parser.parse_and_execute_query 
-        "UPDATE test_table SET example = 1 WHERE example <= 0";
+        "UPDATE test_table SET example = 1 WHERE example < 1";
       let output_update = 
       with_redirected_stdout (fun () ->
         Sqaml.Parser.parse_and_execute_query
@@ -733,6 +751,8 @@ let suite =
          test_parse_and_execute_query;
          test_compare_row;
          test_update_with_less_than;
+         test_for_pk_value;
+         failed_test_for_pk_value;
        ]
 
 let () = run_test_tt_main suite
