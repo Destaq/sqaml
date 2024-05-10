@@ -511,6 +511,14 @@ let test_create_table_tokens =
           Sqaml.Parser.Identifier "KEY);";
         ])
 
+let test_compare_row =
+  as_test "test_compare_row" (fun () ->
+      let row1 : Sqaml.Row.row = { values = [ Int 1; Int 2; Int 3 ] } in
+      let row2 : Sqaml.Row.row = { values = [ Int 1; Int 3; Int 2 ] } in
+      assert_equal 0 (Sqaml.Table.compare_row 0 row1 row2);
+      assert_equal (-1) (Sqaml.Table.compare_row 1 row1 row2);
+      assert_equal 1 (Sqaml.Table.compare_row 2 row1 row2))
+
 (** [test_parse_and_execute_query] is a huge list of assertions that
     verifies the functionality of 90+% of all possible SQL queries or failed inputs.*)
 let test_parse_and_execute_query =
@@ -644,6 +652,7 @@ let suite =
          test_print_tokenized;
          test_create_table_tokens;
          test_parse_and_execute_query;
+         test_compare_row;
        ]
 
 let () = run_test_tt_main suite
