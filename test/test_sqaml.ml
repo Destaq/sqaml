@@ -510,27 +510,6 @@ let test_create_table_tokens =
           Sqaml.Parser.PrimaryKey;
           Sqaml.Parser.Identifier "KEY);";
         ])
-let test_select_with_order =
-  as_test "test_select_with_order" (fun () ->
-      create_tables ();
-      Sqaml.Database.insert_row "test_table"
-        [ "example"; "example2"; "example3"; "example4" ]
-        [ "0"; "2022-12-12"; "4.5"; "null" ];
-      Sqaml.Database.insert_row "test_table"
-        [ "example"; "example2"; "example3"; "example4" ]
-        [ "1"; "2022-12-12"; "4.5"; "null" ];
-      Sqaml.Database.insert_row "test_table"
-        [ "example"; "example2"; "example3"; "example4" ]
-        [ "2"; "2022-12-12"; "4.5"; "null" ];
-      let output =
-        with_redirected_stdout (fun () ->
-            Sqaml.Parser.parse_and_execute_query
-              "SELECT example, example2, example3, example4 FROM test_table ORDER BY example DESC")
-      in
-      assert_equal "2 2022-12-12 4.500000 NULL \n1 2022-12-12 4.500000 NULL \n0 2022-12-12 4.500000 NULL \n"
-        output;
-      drop_tables ())
-
 
 (** [test_compare_row] is an OUnit test that checks that [Sqaml.Table.compare_row]
     returns the correct integer value when comparing two rows. *)
@@ -574,8 +553,7 @@ let test_parse_and_execute_query =
 
       let output_show =
         with_redirected_stdout (fun () ->
-            Sqaml.Parser.parse_and_execute_query
-              "SHOW COLUMNS FROM users")
+            Sqaml.Parser.parse_and_execute_query "SHOW COLUMNS FROM users")
       in
       assert_equal ~printer:printer_wrapper
         "id : Integer |name : Varchar |age : Integer |"
@@ -629,6 +607,30 @@ let test_parse_and_execute_query =
       in
       assert_equal ~printer:printer_wrapper "No tables in database.\n"
         output_show;
+
+      create_tables ();
+      Sqaml.Database.insert_row "test_table"
+        [ "example"; "example2"; "example3"; "example4" ]
+        [ "0"; "2022-12-12"; "4.5"; "null" ];
+      Sqaml.Database.insert_row "test_table"
+        [ "example"; "example2"; "example3"; "example4" ]
+        [ "1"; "2022-12-12"; "4.5"; "null" ];
+      Sqaml.Database.insert_row "test_table"
+        [ "example"; "example2"; "example3"; "example4" ]
+        [ "2"; "2022-12-12"; "4.5"; "null" ];
+      let output_order =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query
+              "SELECT example, example2, example3, example4 FROM test_table \
+               ORDER BY example DESC")
+      in
+      assert_equal
+        "2 2022-12-12 4.500000 NULL \n\
+         1 2022-12-12 4.500000 NULL \n\
+         0 2022-12-12 4.500000 NULL \n"
+        output_order;
+      drop_tables ();
+
       assert_raises (Failure "Syntax error in column definition") (fun () ->
           Sqaml.Parser.parse_and_execute_query "INSERT INTO 12144");
       assert_raises (Failure "Table must have a primary key") (fun () ->
@@ -676,7 +678,6 @@ let suite =
          test_print_nonexistent_table;
          test_select_rows;
          test_select_rows_nonexistent_table;
-         test_select_with_order;
          test_print_value;
          test_value_equals;
          test_value_less_than;
@@ -686,7 +687,6 @@ let suite =
          test_create_table_tokens;
          test_parse_and_execute_query;
          test_compare_row;
-         
        ]
 
 let () = run_test_tt_main suite
