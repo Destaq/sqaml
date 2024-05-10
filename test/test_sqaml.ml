@@ -64,20 +64,6 @@ let drop_tables () =
   Sqaml.Database.drop_table "another_table";
   ()
 
-(** [test_show_all_tables_with_no_tables] is an OUnit test that checks that
-   [show_all_tables] returns the correct output when there are no tables in the
-   database. *)
-let test_show_all_tables_with_no_tables =
-  as_test "test_show_all_tables_with_no_tables" (fun () ->
-      drop_tables ();
-      let output = with_redirected_stdout Sqaml.Database.show_all_tables in
-      let () = print_endline "GOING FOR IT" in
-      let () = print_endline output in
-      let () = print_int (String.length output) in
-      (* TODO: investigate why it doesn't always show no tables in database... *)
-      assert_bool "bad_show_no_tables"
-        (output = "No tables in database.\n" || String.length output = 0))
-
 (** [test_show_all_tables_with_some_tables] is an OUnit test that checks that
    [show_all_tables] returns the correct output when there are some tables in the database. *)
 let test_show_all_tables_with_some_tables =
@@ -262,23 +248,46 @@ let test_update_rows_nonexistent_table =
       in
       assert_raises (Failure "Table does not exist") update)
 
-(**[test_for_pk_value] tests for uniqueness of the primary key*)
-let test_for_pk_value = 
+(** [test_for_pk_value] tests for uniqueness of the primary key. *)
+let test_for_pk_value =
   as_test "test_for_pk_value" (fun () ->
-    create_tables ();
-    assert_equal
-    ()  (* Expected value *)
-    (Sqaml.Database.check_pk_uniqueness "test_table" "example" (Int 0));
-    drop_tables ();
-  )
-  let failed_test_for_pk_value  =
-   as_test "test_for_failed_pk_value" (fun () ->
-    create_tables ();
-    Sqaml.Database.insert_row "test_table" [ "example" ] [ "0" ];
-    assert_raises
-      (Failure "Primary key already exists in the table.")
-      (fun () -> Sqaml.Database.check_pk_uniqueness "test_table" "example" (Int 0));
-    drop_tables ();)
+      create_tables ();
+      assert_equal () (* Expected value *)
+        (Sqaml.Database.check_pk_uniqueness "test_table" "example" (Int 0));
+      drop_tables ())
+
+(** [failed_test_for_pk_value] also tests for uniqueness of the primary key
+    but this time ensures that an error is raised when primary key duplication
+    is attempted. *)
+let failed_test_for_pk_value =
+  as_test "test_for_failed_pk_value" (fun () ->
+      create_tables ();
+      Sqaml.Database.insert_row "test_table"
+        [ "example"; "example2"; "example3"; "example4" ]
+        [ "0"; "2022-12-12"; "4.5"; "null" ];
+      assert_raises (Failure "Primary key already exists in the table.")
+        (fun () ->
+          Sqaml.Database.check_pk_uniqueness "test_table" "example" (Int 0));
+      drop_tables ())
+
+(** [test_update_with_less_than] is an OUnit test that checks that
+    [Sqaml.Database.update_rows] correctly updates rows in a table
+    with a less-than predicate. *)
+let test_update_with_less_than =
+  as_test "test_update_with_less_than" (fun () ->
+      create_tables ();
+      Sqaml.Database.insert_row "test_table" [ "example" ] [ "0" ];
+      let output =
+        with_redirected_stdout (fun () ->
+            Sqaml.Database.update_rows "test_table"
+              (fun row -> row.values < [ Int 0 ])
+              (fun _ -> { values = [ Int 1 ] });
+            Sqaml.Database.print_table "test_table")
+      in
+      assert_equal ~printer:printer_wrapper
+        "example: int\nexample2: date\nexample3: float\nexample4: null\n0 \n"
+        output;
+      drop_tables ())
 
 (** [test_normal_update_rows] is an OUnit test that checks that
     [Sqaml.Database.update_rows] correctly updates rows in a table. *)
@@ -320,21 +329,6 @@ let test_print_table =
       in
       assert_equal ~printer:printer_wrapper
         "example: int\nexample2: date\nexample3: float\nexample4: null\n1 \n"
-        output;
-      drop_tables ())
-let test_update_with_less_than = 
-  as_test "test_update_with_less_than" (fun () ->
-    create_tables ();
-    Sqaml.Database.insert_row "test_table" [ "example" ] [ "0" ];
-    let output = 
-      with_redirected_stdout (fun () -> 
-        Sqaml.Database.update_rows "test_table"
-        (fun row -> row.values < [ Int 0 ])
-        (fun _ -> { values = [ Int 1 ] });
-        Sqaml.Database.print_table "test_table")
-      in
-      assert_equal ~printer:printer_wrapper
-        "example: int\nexample2: date\nexample3: float\nexample4: null\n0 \n"
         output;
       drop_tables ())
 
@@ -664,36 +658,37 @@ let test_parse_and_execute_query =
         output_order;
       drop_tables ();
 
-      create_tables();
+      create_tables ();
       Sqaml.Database.insert_row "test_table"
         [ "example"; "example2"; "example3"; "example4" ]
         [ "0"; "2022-12-12"; "4.5"; "null" ];
-      Sqaml.Parser.parse_and_execute_query 
+      Sqaml.Parser.parse_and_execute_query
         "UPDATE test_table SET example = 1 WHERE example < 1";
-      let output_update = 
-      with_redirected_stdout (fun () ->
-        Sqaml.Parser.parse_and_execute_query
-        "SELECT * FROM test_table")
+      let output_update =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query "SELECT * FROM test_table")
       in
-      assert_equal
-      "1 2022-12-12 4.500000 NULL \n" output_update;
+      assert_equal "1 2022-12-12 4.500000 NULL \n" output_update;
+
+      Sqaml.Parser.parse_and_execute_query
+        "UPDATE test_table SET example = 0 WHERE example > 0";
+      let output_update =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query "SELECT * FROM test_table")
+      in
+      assert_equal "0 2022-12-12 4.500000 NULL \n" output_update;
       drop_tables ();
 
-      create_tables();
-      Sqaml.Database.insert_row "test_table"
-        [ "example"; "example2"; "example3"; "example4" ]
-        [ "0"; "2022-12-12"; "4.5"; "null" ];
-      Sqaml.Parser.parse_and_execute_query 
-        "UPDATE test_table SET example = 1 WHERE example > 0";
-      let output_update = 
-      with_redirected_stdout (fun () ->
-        Sqaml.Parser.parse_and_execute_query
-        "SELECT * FROM test_table")
+      let output_no_tables =
+        with_redirected_stdout (fun () ->
+            drop_tables ();
+            Sqaml.Database.show_all_tables ())
       in
-      assert_equal
-      "0 2022-12-12 4.500000 NULL \n" output_update;
-      drop_tables ();
-      
+      (* TODO: investigate why this doesn't always return no tables in db. *)
+      assert_bool "No tables in database.\n"
+        (output_no_tables = "No tables in database.\n"
+        || String.length output_no_tables = 0);
+
       assert_raises (Failure "Syntax error in column definition") (fun () ->
           Sqaml.Parser.parse_and_execute_query "INSERT INTO 12144");
       assert_raises (Failure "Table must have a primary key") (fun () ->
@@ -721,7 +716,7 @@ let test_parse_and_execute_query =
 let suite =
   "sqaml test suite"
   >::: [
-         test_show_all_tables_with_no_tables;
+         (* test_show_all_tables_with_no_tables; (* see test_parse_and... *)*)
          test_show_all_tables_with_some_tables;
          test_get_column_type_column_present;
          test_get_column_type_table_absent;
@@ -735,6 +730,9 @@ let suite =
          test_create_table_already_exists;
          test_delete_rows_nonexistent_table;
          test_update_rows_nonexistent_table;
+         test_update_with_less_than;
+         test_for_pk_value;
+         failed_test_for_pk_value;
          test_normal_update_rows;
          test_missing_select_all_table;
          test_print_table;
@@ -750,9 +748,6 @@ let suite =
          test_create_table_tokens;
          test_parse_and_execute_query;
          test_compare_row;
-         test_update_with_less_than;
-         test_for_pk_value;
-         failed_test_for_pk_value;
        ]
 
 let () = run_test_tt_main suite
