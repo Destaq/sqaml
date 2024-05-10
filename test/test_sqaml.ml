@@ -675,6 +675,7 @@ let suite =
          test_print_nonexistent_table;
          test_select_rows;
          test_select_rows_nonexistent_table;
+         test_select_with_order;
          test_print_value;
          test_value_equals;
          test_value_less_than;
@@ -684,7 +685,7 @@ let suite =
          test_create_table_tokens;
          test_parse_and_execute_query;
          test_compare_row;
-         test_select_with_order;
+         
        ]
 
 let () = run_test_tt_main suite
