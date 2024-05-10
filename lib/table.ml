@@ -10,6 +10,13 @@ type column_type =
 type column = { name : string; col_type : column_type; primary_key : bool }
 type table = { columns : column list; mutable rows : row list }
 
+(**Helper function for GitHub Actions.*)
+let find_index p =
+  let rec aux i = function
+    [] -> None
+    | a::l -> if p a then Some i else aux (i+1) l in
+  aux 0
+
 (**Convert column type to string.*)
 let column_type_to_str c =
   match c with
@@ -192,7 +199,7 @@ let select_rows_table table column_names pred order_column =
   in
   let order_column_ind =
     if order_column <> "" then
-      List.find_index
+      find_index
         (fun c -> c.name = order_column)
         (List.filter (fun c -> List.mem c columns) table.columns)
     else (None : int option)

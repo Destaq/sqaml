@@ -3,6 +3,13 @@ open Database
 
 type token = Identifier of string | IntKeyword | VarcharKeyword | PrimaryKey
 
+(**Helper function for GitHub Actions, copy of List.find_index.*)
+let find_index p =
+  let rec aux i = function
+    [] -> None
+    | a::l -> if p a then Some i else aux (i+1) l in
+  aux 0
+
 let print_tokenized tokens =
   List.iter
     (function
@@ -102,7 +109,7 @@ let parse_create_table tokens =
             (Table.convert_to_value pk_field.col_type
                (List.nth row_values
                   (Option.get
-                     (List.find_index (fun c -> c = pk_field.name) columns))))
+                     (find_index (fun c -> c = pk_field.name) columns))))
         in
         insert_row _table_name columns row_values
       else insert_row _table_name columns row_values
