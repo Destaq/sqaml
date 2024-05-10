@@ -510,7 +510,29 @@ let test_create_table_tokens =
           Sqaml.Parser.PrimaryKey;
           Sqaml.Parser.Identifier "KEY);";
         ])
+let test_select_with_order =
+  as_test "test_select_with_order" (fun () ->
+      create_tables ();
+      Sqaml.Database.insert_row "test_table"
+        [ "example"; "example2"; "example3"; "example4" ]
+        [ "0"; "2022-12-12"; "4.5"; "null" ];
+      Sqaml.Database.insert_row "test_table"
+        [ "example"; "example2"; "example3"; "example4" ]
+        [ "1"; "2022-12-12"; "4.5"; "null" ];
+      Sqaml.Database.insert_row "test_table"
+        [ "example"; "example2"; "example3"; "example4" ]
+        [ "2"; "2022-12-12"; "4.5"; "null" ];
+      let output =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query
+              "SELECT example, example2, example3, example4 FROM test_table ORDER BY example DESC")
+      in
+      assert_equal ~printer:printer_wrapper "2 2022-12-12 4.500000 NULL \n1 2022-12-12 4.500000 NULL \n0 2022-12-12 4.500000 NULL \n"
+        output;
+      drop_tables ())
 
+(** [test_compare_row] is an OUnit test that checks that [Sqaml.Table.compare_row]
+    returns the correct integer value when comparing two rows. *)
 let test_compare_row =
   as_test "test_compare_row" (fun () ->
       let row1 : Sqaml.Row.row = { values = [ Int 1; Int 2; Int 3 ] } in
