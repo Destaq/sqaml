@@ -527,9 +527,10 @@ let test_select_with_order =
             Sqaml.Parser.parse_and_execute_query
               "SELECT example, example2, example3, example4 FROM test_table ORDER BY example DESC")
       in
-      assert_equal ~printer:printer_wrapper "2 2022-12-12 4.500000 NULL \n1 2022-12-12 4.500000 NULL \n0 2022-12-12 4.500000 NULL \n"
+      assert_equal "2 2022-12-12 4.500000 NULL \n1 2022-12-12 4.500000 NULL \n0 2022-12-12 4.500000 NULL \n"
         output;
       drop_tables ())
+
 
 (** [test_compare_row] is an OUnit test that checks that [Sqaml.Table.compare_row]
     returns the correct integer value when comparing two rows. *)
