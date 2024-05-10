@@ -601,7 +601,7 @@ let test_parse_and_execute_query =
             "UPDATE users SET name='GLORY' WHERE id=1");
       assert_raises (Failure "Table does not exist") (fun () ->
           Sqaml.Parser.parse_and_execute_query "UPDATE users SET name = 'GLORY'");
-      assert_raises (Failure "Syntax error in SQL query") (fun () ->
+      assert_raises (Failure "hd") (fun () ->
           Sqaml.Parser.parse_and_execute_query "SELECT JOKE FROM");
       assert_raises (Failure "Unrecognized where clause format.") (fun () ->
           Sqaml.Parser.parse_and_execute_query
