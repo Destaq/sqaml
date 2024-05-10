@@ -684,6 +684,7 @@ let suite =
          test_create_table_tokens;
          test_parse_and_execute_query;
          test_compare_row;
+         test_select_with_order;
        ]
 
 let () = run_test_tt_main suite
