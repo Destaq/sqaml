@@ -304,6 +304,21 @@ let test_print_table =
         "example: int\nexample2: date\nexample3: float\nexample4: null\n1 \n"
         output;
       drop_tables ())
+let test_update_with_less_than = 
+  as_test "test_update_with_less_than" (fun () ->
+    create_tables ();
+    Sqaml.Database.insert_row "test_table" [ "example" ] [ "0" ];
+    let output = 
+      with_redirected_stdout (fun () -> 
+        Sqaml.Database.update_rows "test_table"
+        (fun row -> row.values < [ Int 0 ])
+        (fun _ -> { values = [ Int 1 ] });
+        Sqaml.Database.print_table "test_table")
+      in
+      assert_equal ~printer:printer_wrapper
+        "example: int\nexample2: date\nexample3: float\nexample4: null\n0 \n"
+        output;
+      drop_tables ())
 
 (** [test_print_nonexistent_table] is an OUnit test that checks that
     [Sqaml.Database.print_table] raises a custom Failure when the table does
@@ -631,6 +646,36 @@ let test_parse_and_execute_query =
         output_order;
       drop_tables ();
 
+      create_tables();
+      Sqaml.Database.insert_row "test_table"
+        [ "example"; "example2"; "example3"; "example4" ]
+        [ "0"; "2022-12-12"; "4.5"; "null" ];
+      Sqaml.Parser.parse_and_execute_query 
+        "UPDATE test_table SET example = 1 WHERE example <= 0";
+      let output_update = 
+      with_redirected_stdout (fun () ->
+        Sqaml.Parser.parse_and_execute_query
+        "SELECT * FROM test_table")
+      in
+      assert_equal
+      "1 2022-12-12 4.500000 NULL \n" output_update;
+      drop_tables ();
+
+      create_tables();
+      Sqaml.Database.insert_row "test_table"
+        [ "example"; "example2"; "example3"; "example4" ]
+        [ "0"; "2022-12-12"; "4.5"; "null" ];
+      Sqaml.Parser.parse_and_execute_query 
+        "UPDATE test_table SET example = 1 WHERE example > 0";
+      let output_update = 
+      with_redirected_stdout (fun () ->
+        Sqaml.Parser.parse_and_execute_query
+        "SELECT * FROM test_table")
+      in
+      assert_equal
+      "0 2022-12-12 4.500000 NULL \n" output_update;
+      drop_tables ();
+      
       assert_raises (Failure "Syntax error in column definition") (fun () ->
           Sqaml.Parser.parse_and_execute_query "INSERT INTO 12144");
       assert_raises (Failure "Table must have a primary key") (fun () ->
@@ -687,6 +732,7 @@ let suite =
          test_create_table_tokens;
          test_parse_and_execute_query;
          test_compare_row;
+         test_update_with_less_than;
        ]
 
 let () = run_test_tt_main suite
