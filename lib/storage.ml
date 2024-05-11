@@ -4,7 +4,7 @@ open Table
 let rec load_rows table columns = function
   | [] -> ()
   | h :: t ->
-      insert_row table columns h;
+      Database.insert_row table columns h;
       load_rows table columns t
 
 let fetch_files () =
@@ -13,7 +13,7 @@ let fetch_files () =
     (fun x -> Filename.extension x = ".csv")
     (Array.to_list list_files)
 
-let print_2d_list lst =
+(**let print_2d_list lst =
   let max_lens =
     List.map (fun row -> List.map String.length row |> List.fold_left max 0) lst
   in
@@ -22,7 +22,7 @@ let print_2d_list lst =
     (fun _ row ->
       List.iteri (fun _ s -> Printf.printf "%*s " max_len s) row;
       print_newline ())
-    lst
+    lst*)
 
 let string_to_col_type = function
   | "varchar" -> Varchar_type
@@ -47,16 +47,22 @@ let header = function
   | names :: types :: _ -> build_columns names types
   | _ ->
       failwith
-        "No column names or types in storage. Please purge the storage \
-         directory."
+        "Storage format corrupted. No column names or types in storage. Please \
+         purge the storage directory."
 
 let load_table_from_file file =
-  let table = Filename.basename file in
+  let table = Filename.remove_extension (Filename.basename file) in
   let data = Csv.square (Csv.load ("lib/storage/" ^ file)) in
-  print_string table;
-  print_2d_list data;
   Database.create_table (header data) table;
-  load_rows table data
+  load_rows table
+    (match data with
+    | h :: _ -> h
+    | _ ->
+        failwith "Storage format corrupted. Header is not properly specified.")
+    (match data with
+    | _ :: _ :: data -> data
+    | _ ->
+        failwith "Storage format corrupted. Header is not properly specified.")
 
 let rec load_tables = function
   | [] -> ()
