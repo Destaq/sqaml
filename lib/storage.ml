@@ -10,7 +10,7 @@ let rec load_rows table columns = function
 let fetch_files () =
   let list_files = Sys.readdir "lib/storage/" in
   List.filter
-    (fun x -> Filename.extension x = ".csv")
+    (fun x -> Filename.extension x = ".sqaml")
     (Array.to_list list_files)
 
 (**let print_2d_list lst =
