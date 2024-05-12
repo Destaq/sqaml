@@ -40,31 +40,45 @@ let string_to_col_type = function
   | "int" -> Int_type
   | _ -> failwith "Error. Incorrect column type saved."
 
-let build_columns column_names column_types =
+let build_columns column_names column_types primary_key =
   let rec build_cols names types acc =
     match (names, types) with
     | [], [] -> List.rev acc
     | name :: rest_names, col_type :: rest_types ->
-        let primary_key = match acc with [] -> true | _ -> false in
+        print_string primary_key;
+        print_string name;
         let col =
-          { name; col_type = string_to_col_type col_type; primary_key }
+          {
+            name;
+            col_type = string_to_col_type col_type;
+            primary_key = primary_key = name;
+          }
         in
         build_cols rest_names rest_types (col :: acc)
     | _ -> failwith "Column names and types have different lengths"
   in
   build_cols column_names column_types []
 
-let header = function
-  | names :: types :: _ -> build_columns names types
+let header pk = function
+  | names :: types :: _ -> build_columns names types pk
   | _ ->
       failwith
         "Storage format corrupted. No column names or types in storage. Please \
          purge the storage directory."
 
+let split_and_get_parts s =
+  let parts = String.split_on_char '_' s in
+  match parts with
+  | [] -> ("", "")
+  | [ part ] -> (part, "")
+  | part1 :: part2 :: _ -> (part1, part2)
+
 let load_table_from_file file =
-  let table = Filename.remove_extension (Filename.basename file) in
+  let filename = Filename.remove_extension (Filename.basename file) in
+  let table = fst (split_and_get_parts filename) in
+  let pk = snd (split_and_get_parts filename) in
   let data = Csv.square (Csv.load ("lib/storage/" ^ file)) in
-  Database.create_table (header data) table;
+  Database.create_table (header pk data) table;
   load_rows table
     (match data with
     | h :: _ -> h
@@ -103,13 +117,19 @@ let rec types_from_names table_name = function
       | _ -> "Incorrect column type")
       :: types_from_names table_name t
 
+let get_pk_field_name table =
+  match get_pk_field table with
+  | None -> failwith "No primary key."
+  | Some x -> x.name
+
 let rec save_data = function
   | [] -> ()
   | h :: t ->
       let names = get_columns_lst !(Hashtbl.find tables h) false in
       let types = types_from_names h names in
+      let pk = get_pk_field_name h in
       Csv.save
-        ("lib/storage/" ^ h ^ ".sqaml")
+        ("lib/storage/" ^ h ^ "_" ^ pk ^ ".sqaml")
         (names :: types
         :: rows_to_lists (Table.select_all !(Hashtbl.find tables h)));
       save_data t
