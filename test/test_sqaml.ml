@@ -184,13 +184,8 @@ let test_insert_row_table_exists =
               values;
             Sqaml.Database.delete_rows "test_table" (fun _ -> true))
       in
-      assert_equal ~printer:printer_wrapper
-        "example: int\n\
-         example2: date\n\
-         example3: float\n\
-         example4: null\n\
-         17 2022-12-12 4.500000 NULL \n"
-        output;
+      assert_equal ~printer:printer_wrapper "" output;
+      (* no longer showing insertion... *)
       drop_tables ())
 
 (** [test_insert_row_table_absent] is an OUnit test that checks that
@@ -198,6 +193,7 @@ let test_insert_row_table_exists =
     not exist. *)
 let test_insert_row_table_absent =
   as_test "test_insert_row_table_absent" (fun () ->
+      drop_tables ();
       let values = [ "12" ] in
       let insert_absent_table () =
         Sqaml.Database.insert_row "test_table" [ "example" ] values
@@ -209,6 +205,7 @@ let test_insert_row_table_absent =
     already exists. *)
 let test_create_table_already_exists =
   as_test "test_create_table_already_exists" (fun () ->
+      drop_tables ();
       create_tables ();
       let create_table () =
         Sqaml.Database.create_table
@@ -558,14 +555,14 @@ let test_parse_and_execute_query =
             Sqaml.Parser.parse_and_execute_query
               "CREATE TABLE users (id INT PRIMARY KEY, name VARCHAR, age INT)")
       in
-      assert_equal ~printer:printer_wrapper "id: int\nname: varchar\nage: int\n"
-        output_create;
+      assert_equal ~printer:printer_wrapper ""
+        (* also no longer showing here... *) output_create;
       let output_create2 =
         with_redirected_stdout (fun () ->
             Sqaml.Parser.parse_and_execute_query
               "CREATE TABLE another (auto PRIMARY KEY)")
       in
-      assert_equal ~printer:printer_wrapper "auto: int\n" output_create2;
+      assert_equal ~printer:printer_wrapper "" output_create2;
 
       Sqaml.Parser.parse_and_execute_query "DROP TABLE another";
 
@@ -574,9 +571,7 @@ let test_parse_and_execute_query =
             Sqaml.Parser.parse_and_execute_query
               "INSERT INTO users (id, name, age) VALUES (1, 'Simon', 25)")
       in
-      assert_equal ~printer:printer_wrapper
-        "id: int\nname: varchar\nage: int\n1 'Simon' 25"
-        (String.trim output_insert);
+      assert_equal ~printer:printer_wrapper "" (String.trim output_insert);
 
       let output_show =
         with_redirected_stdout (fun () ->

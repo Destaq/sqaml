@@ -58,7 +58,7 @@ let print_row row =
     (fun v ->
       match v with
       | Int i -> Printf.printf "%d " i
-      | Varchar s -> Printf.printf "%s " s
+      | Varchar s -> Printf.printf "'%s' " s
       | Float f -> Printf.printf "%f " f
       | Date d -> Printf.printf "%s " d
       | Null -> Printf.printf "NULL ")
