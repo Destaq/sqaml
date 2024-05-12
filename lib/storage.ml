@@ -1,5 +1,6 @@
 (* storage.ml *)
 open Table
+open Database
 
 let rec load_rows table columns = function
   | [] -> ()
@@ -23,6 +24,16 @@ let fetch_files () =
       List.iteri (fun _ s -> Printf.printf "%*s " max_len s) row;
       print_newline ())
     lst*)
+
+let remove_all_files_in_dir dir =
+  try
+    let files = Array.to_list (Sys.readdir dir) in
+    List.iter
+      (fun file ->
+        let file_path = Filename.concat dir file in
+        if Sys.is_directory file_path then () else Sys.remove file_path)
+      files
+  with Sys_error msg -> Printf.eprintf "Error: %s\n" msg
 
 let string_to_col_type = function
   | "varchar" -> Varchar_type
@@ -74,4 +85,35 @@ let load_from_storage () =
   let files = fetch_files () in
   load_tables files
 
-let sync_on_exit () = ()
+let get_keys_from_hashtbl hashtbl =
+  let keys = ref [] in
+  Hashtbl.iter (fun key _ -> keys := key :: !keys) hashtbl;
+  List.rev !keys
+
+let rec rows_to_lists = function
+  | [] -> []
+  | h :: t -> Row.to_list h :: rows_to_lists t
+
+let rec types_from_names table_name = function
+  | [] -> []
+  | h :: t ->
+      (match get_column_type table_name h with
+      | Int_type -> "int"
+      | Varchar_type -> "varchar"
+      | _ -> "Incorrect column type")
+      :: types_from_names table_name t
+
+let rec save_data = function
+  | [] -> ()
+  | h :: t ->
+      let names = get_columns_lst !(Hashtbl.find tables h) false in
+      let types = types_from_names h names in
+      Csv.save
+        ("lib/storage/" ^ h ^ ".sqaml")
+        (names :: types
+        :: rows_to_lists (Table.select_all !(Hashtbl.find tables h)));
+      save_data t
+
+let sync_on_exit () =
+  remove_all_files_in_dir "lib/storage/";
+  save_data (get_keys_from_hashtbl tables)

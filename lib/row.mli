@@ -26,3 +26,6 @@ val value_greater_than : value -> value -> bool
 
 val value_less_than : value -> value -> bool
 (** [value_less_than v1 v2] returns true if [v1] is less than [v2] and false otherwise. *)
+
+val to_list : row -> string list
+(** [to_list r] returns a string list representation of row [r]. *)

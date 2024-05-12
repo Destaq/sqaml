@@ -11,7 +11,7 @@ let rec main_loop () =
   in
   let query = String.concat " " (List.rev (read_lines [])) in
   match query with
-  | "exit" -> print_string "syncing files..."
+  | "exit" -> sync_on_exit ()
   | _ -> (
       try
         parse_and_execute_query query;
