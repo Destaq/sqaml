@@ -269,7 +269,7 @@ let rec get_order_by_info select_tokens =
   | _ -> (false, "", "")
 
 let rec take n xs =
-  if not (List.is_empty xs) then
+  if not (List.length xs = 0) then
     match n with 0 -> [] | _ -> List.hd xs :: take (n - 1) (List.tl xs)
   else []
 
