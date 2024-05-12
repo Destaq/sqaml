@@ -213,7 +213,7 @@ let select_rows_table table column_names pred order_column =
     in
     { values = filtered_values }
   in
-  (order_column_ind, List.filter pred (List.map filter_row table.rows))
+  (order_column_ind, List.map filter_row (List.filter pred table.rows))
 
 let select_all table = table.rows
 

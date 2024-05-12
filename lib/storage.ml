@@ -14,17 +14,6 @@ let fetch_files () =
     (fun x -> Filename.extension x = ".sqaml")
     (Array.to_list list_files)
 
-(**let print_2d_list lst =
-  let max_lens =
-    List.map (fun row -> List.map String.length row |> List.fold_left max 0) lst
-  in
-  let max_len = List.fold_left max 0 max_lens in
-  List.iteri
-    (fun _ row ->
-      List.iteri (fun _ s -> Printf.printf "%*s " max_len s) row;
-      print_newline ())
-    lst*)
-
 let remove_all_files_in_dir dir =
   try
     let files = Array.to_list (Sys.readdir dir) in
@@ -45,8 +34,6 @@ let build_columns column_names column_types primary_key =
     match (names, types) with
     | [], [] -> List.rev acc
     | name :: rest_names, col_type :: rest_types ->
-        print_string primary_key;
-        print_string name;
         let col =
           {
             name;

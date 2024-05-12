@@ -65,16 +65,14 @@ let create_table columns table_name =
   if Hashtbl.mem tables table_name then failwith "Table already exists"
   else
     let new_table = ref (create_table columns) in
-    Hashtbl.add tables table_name new_table;
-    print_table !new_table
+    Hashtbl.add tables table_name new_table
 
 (* Function to insert a row into a table *)
 let insert_row table values row =
   if not (Hashtbl.mem tables table) then failwith "Table does not exist"
   else
     let table_ref = Hashtbl.find tables table in
-    insert_row !table_ref values row;
-    print_table !table_ref
+    insert_row !table_ref values row
 
 (* Function to update rows in a table *)
 let update_rows table predicate transform =

@@ -3,11 +3,20 @@ open Database
 
 type token = Identifier of string | IntKeyword | VarcharKeyword | PrimaryKey
 
+(**Print out string list [lst], with each element separated by [sep].*)
+let rec print_string_list lst sep =
+  match lst with
+  | [] -> ()
+  | h :: t ->
+      let () = print_string (h ^ sep) in
+      print_string_list t sep
+
 (**Helper function for GitHub Actions, copy of List.find_index.*)
 let find_index p =
   let rec aux i = function
-    [] -> None
-    | a::l -> if p a then Some i else aux (i+1) l in
+    | [] -> None
+    | a :: l -> if p a then Some i else aux (i + 1) l
+  in
   aux 0
 
 let print_tokenized tokens =
@@ -31,7 +40,7 @@ let tokenize_query query =
           | "KEY" -> PrimaryKey
           | "TABLE" | "TABLES" | "CREATE" | "INSERT" | "INTO" | "SELECT"
           | "SHOW" | "DROP" | "WHERE" | "UPDATE" | "SET" | "FROM" | "AND"
-          | "ORDER" | "BY" | "LIMIT" | "COLUMNS" ->
+          | "ORDER" | "BY" | "LIMIT" | "COLUMNS" | "DELETE" ->
               Identifier (String.uppercase_ascii hd)
           | _ -> Identifier hd
         in
@@ -107,8 +116,7 @@ let parse_create_table tokens =
           check_pk_uniqueness _table_name pk_field.name
             (Table.convert_to_value pk_field.col_type
                (List.nth row_values
-                  (Option.get
-                     (find_index (fun c -> c = pk_field.name) columns))))
+                  (Option.get (find_index (fun c -> c = pk_field.name) columns))))
         in
         insert_row _table_name columns row_values
       else insert_row _table_name columns row_values
@@ -153,6 +161,8 @@ let construct_predicate_params table_name pred_tokens =
   let rec construct_pred_aux tokens col_acc val_acc op_acc =
     match tokens with
     | [] -> (col_acc, val_acc, op_acc)
+    | (Identifier "ORDER" | Identifier "LIMIT") :: _remaining_tokens ->
+        (col_acc, val_acc, op_acc)
     | (Identifier "WHERE" | Identifier "AND")
       :: Identifier field1
       :: Identifier op
@@ -228,14 +238,15 @@ let rec parse_select_query_fields tokens acc =
       | _ ->
           failwith "Non-identifier detected whil parsing select query fields.")
 
-let rec extract_column_names fields =
+let rec extract_column_names tb_name fields =
   match fields with
   | [] -> []
   | h :: t -> (
       match h with
       | Identifier cur_tok ->
-          if cur_tok <> "," then cur_tok :: extract_column_names t
-          else extract_column_names t
+          if cur_tok = "*" then get_table_columns tb_name false
+          else if cur_tok <> "," then cur_tok :: extract_column_names tb_name t
+          else extract_column_names tb_name t
       | _ -> failwith "Non-identifier detected in column list.")
 
 let rec get_limit_info select_tokens =
@@ -258,7 +269,9 @@ let rec get_order_by_info select_tokens =
   | _ -> (false, "", "")
 
 let rec take n xs =
-  match n with 0 -> [] | _ -> List.hd xs :: take (n - 1) (List.tl xs)
+  if not (List.is_empty xs) then
+    match n with 0 -> [] | _ -> List.hd xs :: take (n - 1) (List.tl xs)
+  else []
 
 let construct_sorter table_name column_ind r1 r2 =
   sorter table_name column_ind r1 r2
@@ -269,10 +282,12 @@ let parse_select_records select_tokens =
   let selected_fields, table_name =
     parse_select_query_fields select_tokens []
   in
-  let selected_fields = extract_column_names selected_fields in
+  let selected_fields = extract_column_names table_name selected_fields in
   let () =
-    if order_column <> "" && not (List.mem order_column selected_fields) then
-      failwith "Order column is not present in field list."
+    if
+      order_column <> "" && order_column <> ""
+      && not (List.mem order_column selected_fields)
+    then failwith "Order column is not present in field list."
     else ()
   in
   let () =
@@ -328,14 +343,6 @@ let replace_all str old_substring new_substring =
     with Not_found -> str
   in
   replace_helper str old_substring new_substring 0
-
-(**Print out string list [lst], with each element separated by [sep].*)
-let rec print_string_list lst sep =
-  match lst with
-  | [] -> ()
-  | h :: t ->
-      let () = print_string (h ^ sep) in
-      print_string_list t sep
 
 let parse_query query =
   let query = replace_all query "," " , " in
