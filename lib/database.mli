@@ -15,6 +15,9 @@ val construct_predicate :
   bool
 (** [construct_predicate] constructs a predicate from a where clause. *)
 
+val tables : (string, table ref) Hashtbl.t
+(** Main tables variable to store the database tables.*)
+
 val get_pk_field : string -> column option
 (**[get_pk_field] returns the primary key field in a table.*)
 

@@ -13,8 +13,9 @@ type table = { columns : column list; mutable rows : row list }
 (**Helper function for GitHub Actions.*)
 let find_index p =
   let rec aux i = function
-    [] -> None
-    | a::l -> if p a then Some i else aux (i+1) l in
+    | [] -> None
+    | a :: l -> if p a then Some i else aux (i + 1) l
+  in
   aux 0
 
 (**Convert column type to string.*)

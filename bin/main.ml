@@ -1,4 +1,5 @@
 open Sqaml.Parser
+open Sqaml.Storage
 
 let rec main_loop () =
   print_string "Enter an SQL command (or 'Ctrl-C' to quit): ";
@@ -10,7 +11,7 @@ let rec main_loop () =
   in
   let query = String.concat " " (List.rev (read_lines [])) in
   match query with
-  | "exit" -> ()
+  | "exit" -> sync_on_exit ()
   | _ -> (
       try
         parse_and_execute_query query;
@@ -36,6 +37,7 @@ let () =
   print_endline ascii_art
 ;;
 
+load_from_storage ();
 print_endline "Welcome to the SQAMLVerse!";
 main_loop ();
 print_endline "Goodbye!"

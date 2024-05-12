@@ -25,6 +25,17 @@ let value_equals val1 val2 =
 
 let value_not_equals val1 val2 = not (value_equals val1 val2)
 
+let convert_to_string = function
+  | Int x -> string_of_int x
+  | Varchar x -> x
+  | _ -> failwith "Bad type."
+
+let rec convert_values = function
+  | [] -> []
+  | h :: t -> convert_to_string h :: convert_values t
+
+let to_list r = convert_values r.values
+
 (**Requires YYYY-MM-DD format.*)
 let value_greater_than val1 val2 =
   match (val1, val2) with
