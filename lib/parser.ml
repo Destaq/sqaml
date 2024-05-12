@@ -91,7 +91,6 @@ let parse_create_table tokens =
     | Identifier name :: tl -> parse_values (name :: acc) tl
     | _ -> raise (Failure "Syntax error in column definition")
   in
-
   match tokens with
   | Identifier "CREATE" :: Identifier "TABLE" :: Identifier _table_name :: tl ->
       let columns = parse_columns [] tl in
