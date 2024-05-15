@@ -111,6 +111,16 @@ Enter an SQL command (or 'exit;' to quit): SELECT * FROM users;
 2 'Alex'
 1 'Simon'
 
+Enter an SQL command (or 'exit;' to quit): SELECT * FROM users WHERE name = 'Alex';
+2 'Alex'
+
+Enter an SQL command (or 'exit;' to quit): SELECT * FROM users ORDER BY id;
+1 'Simon'
+2 'Alex'
+
+Enter an SQL command (or 'exit;' to quit): SELECT * FROM users ORDER BY id LIMIT 1;
+1 'Simon'
+
 Enter an SQL command (or 'exit;' to quit): DELETE FROM users WHERE name = 'Alex';
 
 Enter an SQL command (or 'exit;' to quit): UPDATE users SET name = 'Clarkson' WHERE id = 1;
