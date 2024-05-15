@@ -267,6 +267,29 @@ let failed_test_for_pk_value =
           Sqaml.Database.check_pk_uniqueness "test_table" "example" (Int 0));
       drop_tables ())
 
+(** [failed_tableless_test_for_pk_value] also tests for uniqueness of the primary key
+    but this time ensures that an error is raised when one attempts to read from
+    a table that does not exist. *)
+let failed_tableless_test_for_pk_value =
+  as_test "test_for_tableless_failed_pk_value" (fun () ->
+      assert_raises (Failure "Table does not exist") (fun () ->
+          Sqaml.Database.check_pk_uniqueness "no_exists" "example" (Int 0)))
+
+(** [test_get_pk_field] is an OUnit test that checks that [Sqaml.Database.get_pk_field]
+    returns the correct failure when the table does not exist. *)
+let test_failed_get_pk_field =
+  as_test "test_failed_get_pk_field" (fun () ->
+      assert_raises (Failure "Table does not exist") (fun () ->
+          Sqaml.Database.get_pk_field "no_exists"))
+
+(** [test_get_table_columns] is an OUnit test that checks that
+    [Sqaml.Database.get_table_columns] returns the correct failure when the
+    table does not exist. *)
+let test_failed_get_table_columns =
+  as_test "test_failed_get_table_columns" (fun () ->
+      assert_raises (Failure "Table does not exist") (fun () ->
+          Sqaml.Database.get_table_columns "no_exists" false))
+
 (** [test_update_with_less_than] is an OUnit test that checks that
     [Sqaml.Database.update_rows] correctly updates rows in a table
     with a less-than predicate. *)
@@ -548,8 +571,19 @@ let test_compare_row =
 (** [test_to_list] confirms that string representations of rows for database storage are generated successfully. *)
 let test_to_list =
   as_test "test_to_list" (fun () ->
-      let row : Sqaml.Row.row = { values = [ Int 1; Int 2; Int 3 ] } in
-      assert_equal [ "1"; "2"; "3" ] (Sqaml.Row.to_list row))
+      let row : Sqaml.Row.row =
+        { values = [ Int 1; Int 2; Varchar "Hello" ] }
+      in
+      assert_equal [ "1"; "2"; "Hello" ] (Sqaml.Row.to_list row))
+
+(** [test_to_list_bad_type] confirms that string representations of rows for database storage throw an error if
+    a type is not matched. Currently supported types are only integers and varchars. *)
+let test_to_list_fails =
+  as_test "test_to_list" (fun () ->
+      let row : Sqaml.Row.row =
+        { values = [ Int 1; Int 2; Varchar "Hello"; Date "2022-12-12" ] }
+      in
+      assert_raises (Failure "Bad type.") (fun () -> Sqaml.Row.to_list row))
 
 (** [test_parse_and_execute_query] is a huge list of assertions that
     verifies the functionality of 90+% of all possible SQL queries or failed inputs.*)
@@ -584,6 +618,18 @@ let test_parse_and_execute_query =
                25)")
       in
       assert_equal ~printer:printer_wrapper "" (String.trim output_insert);
+
+      assert_raises
+        (Failure "Number of columns does not match number of values") (fun () ->
+          Sqaml.Parser.parse_and_execute_query
+            "INSERT INTO users (id, name, age) VALUES (4, \"Simon Ilincev\" \
+             OK, 25)");
+
+      assert_raises (Failure "Improper columns or order provided for insert.")
+        (fun () ->
+          Sqaml.Parser.parse_and_execute_query
+            "INSERT INTO users (alpha, beta, gamma) VALUES (8, \"Simon \
+             Ilincev\", 25)");
 
       let output_show =
         with_redirected_stdout (fun () ->
@@ -736,6 +782,9 @@ let test_parse_and_execute_query =
           Sqaml.Parser.parse_and_execute_query
             "create table users (name primary key)";
           Sqaml.Parser.parse_and_execute_query "UPDATE users SET name = 1 WHERE");
+      assert_raises (Failure "Syntax error in column definition") (fun () ->
+          Sqaml.Parser.parse_and_execute_query
+            "CREATE TABLE different (id INT PRIMARY KEY, name");
       Sqaml.Parser.parse_and_execute_query "DROP TABLE users";
       (* note missing query support for float, date, and null *)
       assert_raises (Failure "Unsupported query") (fun () ->
@@ -762,6 +811,9 @@ let suite =
          test_update_with_less_than;
          test_for_pk_value;
          failed_test_for_pk_value;
+         failed_tableless_test_for_pk_value;
+         test_failed_get_pk_field;
+         test_failed_get_table_columns;
          test_normal_update_rows;
          test_missing_select_all_table;
          test_print_table;
@@ -776,6 +828,7 @@ let suite =
          test_print_tokenized;
          test_create_table_tokens;
          test_to_list;
+         test_to_list_fails;
          test_parse_and_execute_query;
          test_compare_row;
        ]
