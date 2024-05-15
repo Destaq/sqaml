@@ -51,7 +51,7 @@ In the command-line, that should generate the following output:
       [[] [[]]
       [[] [[]]
 Welcome to the SQAMLVerse!
-Enter an SQL command (or 'Ctrl-C' to quit):
+Enter an SQL command (or 'exit;' to quit):
 ```
 
 ## Documentation
@@ -88,42 +88,42 @@ Please note that all SQL commands must be terminated with a semicolon (`;`). Add
       [[] [[]]
       [[] [[]]
 Welcome to the SQAMLVerse!
-Enter an SQL command (or 'Ctrl-C' to quit): CREATE TABLE users (id int primary key, name varchar);
+Enter an SQL command (or 'exit;' to quit): CREATE TABLE users (id int primary key, name varchar);
 id: int
 name: varchar
 
-Enter an SQL command (or 'Ctrl-C' to quit): CREATE TABLE users (id int primary key, name varchar, age int);
+Enter an SQL command (or 'exit;' to quit): CREATE TABLE users (id int primary key, name varchar, age int);
 Error: Table already exists
 
-Enter an SQL command (or 'Ctrl-C' to quit): INSERT INTO users (id, name) VALUES (1, 'Simon');
+Enter an SQL command (or 'exit;' to quit): INSERT INTO users (id, name) VALUES (1, 'Simon');
 id: int
 name: varchar
 1 'Simon'
 
-Enter an SQL command (or 'Ctrl-C' to quit): INSERT INTO users (id, name) VALUES (2, 'Alex');
+Enter an SQL command (or 'exit;' to quit): INSERT INTO users (id, name) VALUES (2, 'Alex');
 id: int
 name: varchar
 2 'Alex'
 1 'Simon'
 
-Enter an SQL command (or 'Ctrl-C' to quit): SELECT * FROM users;
+Enter an SQL command (or 'exit;' to quit): SELECT * FROM users;
 2 'Alex'
 1 'Simon'
 
-Enter an SQL command (or 'Ctrl-C' to quit): DELETE FROM users WHERE name = 'Alex';
+Enter an SQL command (or 'exit;' to quit): DELETE FROM users WHERE name = 'Alex';
 
-Enter an SQL command (or 'Ctrl-C' to quit): UPDATE users SET name = 'Clarkson' WHERE id = 1;
+Enter an SQL command (or 'exit;' to quit): UPDATE users SET name = 'Clarkson' WHERE id = 1;
 
-Enter an SQL command (or 'Ctrl-C' to quit): SELECT * FROM users;
+Enter an SQL command (or 'exit;' to quit): SELECT * FROM users;
 1 'Clarkson'
 
-Enter an SQL command (or 'Ctrl-C' to quit): SHOW TABLES;
+Enter an SQL command (or 'exit;' to quit): SHOW TABLES;
 Tables:
 users
 
-Enter an SQL command (or 'Ctrl-C' to quit): DROP TABLE users;
+Enter an SQL command (or 'exit;' to quit): DROP TABLE users;
 
-Enter an SQL command (or 'Ctrl-C' to quit): SHOW TABLES;
+Enter an SQL command (or 'exit;' to quit): SHOW TABLES;
 No tables in database.
 ```
 

@@ -3,7 +3,7 @@ open Sqaml.Storage
 
 (**Main program driver to retrieve user input and call backend commands accordingly.*)
 let rec main_loop () =
-  print_string "Enter an SQL command (or 'Ctrl-C' to quit): ";
+  print_string "Enter an SQL command (or 'exit;' to quit): ";
   let rec read_lines acc =
     let line = read_line () in
     if String.contains line ';' then

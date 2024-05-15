@@ -11,10 +11,14 @@ let rec load_rows table columns = function
 
 (**Fetch data/table storage files.*)
 let fetch_files () =
-  let list_files = Sys.readdir "lib/storage/" in
-  List.filter
-    (fun x -> Filename.extension x = ".sqaml")
-    (Array.to_list list_files)
+  try
+    let list_files = Sys.readdir "lib/storage/" in
+    List.filter
+      (fun x -> Filename.extension x = ".sqaml")
+      (Array.to_list list_files)
+  with Sys_error _ ->
+    Sys.mkdir "lib/storage/" 0o777;
+    []
 
 (**Remove all files in a directory.*)
 let remove_all_files_in_dir dir =
