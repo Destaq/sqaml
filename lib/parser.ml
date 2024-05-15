@@ -1,6 +1,7 @@
 open Table
 open Database
 
+(**Primary types for parsing tokens.*)
 type token = Identifier of string | IntKeyword | VarcharKeyword | PrimaryKey
 
 (**Print out string list [lst], with each element separated by [sep].*)
