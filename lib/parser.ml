@@ -50,13 +50,25 @@ let replace_all str old_substring new_substring =
   in
   replace_helper str old_substring new_substring 0
 
+(*Helper function to ensure that tests pass on ci/cd.*)
+let ends_with ~suffix s =
+  let len_s = String.length s and len_suf = String.length suffix in
+  let diff = len_s - len_suf in
+  let rec aux i =
+    if i = len_suf then true
+    else if String.unsafe_get s (diff + i) <> String.unsafe_get suffix i then
+      false
+    else aux (i + 1)
+  in
+  diff >= 0 && aux 0
+
 (**Group and merge tokens based on quotations.*)
 let rec quote_grouping acc cur_group in_group tokens =
   match tokens with
   | [] -> List.rev acc
   | h :: t ->
       if in_group then
-        if String.ends_with ~suffix:"\"" h then
+        if ends_with ~suffix:"\"" h then
           quote_grouping
             ((cur_group ^ " " ^ replace_all h "\"" "") :: acc)
             "" false t
@@ -65,8 +77,7 @@ let rec quote_grouping acc cur_group in_group tokens =
             (cur_group ^ " " ^ replace_all h "\"" "")
             in_group t
       else if
-        String.starts_with ~prefix:"\"" h
-        && not (String.ends_with ~suffix:"\"" h)
+        String.starts_with ~prefix:"\"" h && not (ends_with ~suffix:"\"" h)
       then quote_grouping acc (replace_all h "\"" "") true t
       else quote_grouping (replace_all h "\"" "" :: acc) cur_group in_group t
 
