@@ -545,6 +545,12 @@ let test_compare_row =
       assert_equal (-1) (Sqaml.Table.compare_row 1 row1 row2);
       assert_equal 1 (Sqaml.Table.compare_row 2 row1 row2))
 
+(** [test_to_list] confirms that string representations of rows for database storage are generated successfully. *)
+let test_to_list =
+  as_test "test_to_list" (fun () ->
+      let row : Sqaml.Row.row = { values = [ Int 1; Int 2; Int 3 ] } in
+      assert_equal [ "1"; "2"; "3" ] (Sqaml.Row.to_list row))
+
 (** [test_parse_and_execute_query] is a huge list of assertions that
     verifies the functionality of 90+% of all possible SQL queries or failed inputs.*)
 let test_parse_and_execute_query =
@@ -557,6 +563,11 @@ let test_parse_and_execute_query =
       in
       assert_equal ~printer:printer_wrapper ""
         (* also no longer showing here... *) output_create;
+
+      assert_raises (Failure "Incorrect number of columns provided.") (fun () ->
+          Sqaml.Parser.parse_and_execute_query
+            "INSERT INTO users (id) VALUES (1)");
+
       let output_create2 =
         with_redirected_stdout (fun () ->
             Sqaml.Parser.parse_and_execute_query
@@ -569,7 +580,8 @@ let test_parse_and_execute_query =
       let output_insert =
         with_redirected_stdout (fun () ->
             Sqaml.Parser.parse_and_execute_query
-              "INSERT INTO users (id, name, age) VALUES (1, 'Simon', 25)")
+              "INSERT INTO users (id, name, age) VALUES (1, \"Simon Ilincev\", \
+               25)")
       in
       assert_equal ~printer:printer_wrapper "" (String.trim output_insert);
 
@@ -585,8 +597,11 @@ let test_parse_and_execute_query =
         with_redirected_stdout (fun () ->
             Sqaml.Parser.parse_and_execute_query "SELECT * FROM users")
       in
-      assert_equal ~printer:printer_wrapper "1 'Simon' 25"
+      assert_equal ~printer:printer_wrapper "1 'Simon Ilincev' 25"
         (String.trim output_select);
+
+      assert_raises (Failure "No proper fields selected in query.") (fun () ->
+          Sqaml.Parser.parse_and_execute_query "SELECT FROM users");
 
       let output_update =
         with_redirected_stdout (fun () ->
@@ -651,6 +666,25 @@ let test_parse_and_execute_query =
          1 2022-12-12 4.500000 NULL \n\
          0 2022-12-12 4.500000 NULL \n"
         output_order;
+      drop_tables ();
+
+      create_tables ();
+      Sqaml.Database.insert_row "test_table"
+        [ "example"; "example2"; "example3"; "example4" ]
+        [ "0"; "2022-12-12"; "4.5"; "null" ];
+      Sqaml.Database.insert_row "test_table"
+        [ "example"; "example2"; "example3"; "example4" ]
+        [ "1"; "2022-12-12"; "4.5"; "null" ];
+      Sqaml.Database.insert_row "test_table"
+        [ "example"; "example2"; "example3"; "example4" ]
+        [ "2"; "2022-12-12"; "4.5"; "null" ];
+      let output_order_limit_by =
+        with_redirected_stdout (fun () ->
+            Sqaml.Parser.parse_and_execute_query
+              "SELECT example, example2, example3, example4 FROM test_table \
+               ORDER BY example DESC LIMIT 1")
+      in
+      assert_equal "2 2022-12-12 4.500000 NULL \n" output_order_limit_by;
       drop_tables ();
 
       create_tables ();
@@ -741,6 +775,7 @@ let suite =
          test_tokenize_query;
          test_print_tokenized;
          test_create_table_tokens;
+         test_to_list;
          test_parse_and_execute_query;
          test_compare_row;
        ]
