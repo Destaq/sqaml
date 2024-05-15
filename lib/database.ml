@@ -102,6 +102,7 @@ let select_rows table fields predicate order_col =
     in
     selected_rows
 
+(**Select all data from a given table.*)
 let select_all table =
   if not (Hashtbl.mem tables table) then failwith "Table does not exist"
   else

@@ -59,3 +59,4 @@ val select_all : string -> unit
 (** [select_all] selects every row and column from the table*)
 
 val sorter : string -> int -> row -> row -> int
+(**[sorter] constructs a sorting function given table name, column index, and 2 rows.*)

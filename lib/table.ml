@@ -1,5 +1,6 @@
 open Row
 
+(**Possible database column types*)
 type column_type =
   | Int_type
   | Varchar_type
@@ -8,7 +9,10 @@ type column_type =
   | Null_type
 
 type column = { name : string; col_type : column_type; primary_key : bool }
+(**Full column storage.*)
+
 type table = { columns : column list; mutable rows : row list }
+(**Full table storage.*)
 
 (**Helper function for GitHub Actions.*)
 let find_index p =
@@ -50,7 +54,7 @@ let get_columns_lst table include_type =
   in
   extract_column_names table.columns
 
-(**Get type of a column*)
+(**Get type of a column.*)
 let get_column_type table col_name =
   let rec get_column_type_aux columns name =
     match columns with
@@ -67,7 +71,7 @@ let get_column_names table =
   in
   get_cols_aux table.columns
 
-(*Construct row map.*)
+(*Construct row map, converting list of values into a hashtable for easier access.*)
 let construct_row_map table row_data =
   let column_names = get_column_names table in
   if List.length column_names <> List.length row_data.values then
@@ -112,7 +116,7 @@ let compare_row column_ind r1 r2 =
   then 0
   else -1
 
-(**Get correct value.*)
+(**Get correct value from a data transform.*)
 let rec get_new_value_from_transform columns_lst values_lst column =
   match (columns_lst, values_lst) with
   | [], [] -> failwith "Column not found when creating new value in transform."
@@ -137,7 +141,7 @@ let construct_transform columns_lst values_lst table row_data =
   in
   { values = transform_aux column_names row_data.values [] }
 
-(**Construct a predicate for filtering.*)
+(**Construct a predicate for filtering for where clauses.*)
 let construct_predicate columns_lst match_values_lst operators_lst table
     row_data =
   let row_map = construct_row_map table row_data in
@@ -151,11 +155,13 @@ let construct_predicate columns_lst match_values_lst operators_lst table
   in
   pred_aux columns_lst match_values_lst operators_lst
 
+(**Create a new table with given columns.*)
 let create_table columns =
   let has_primary_key = List.exists (fun col -> col.primary_key) columns in
   if not has_primary_key then failwith "Table must have a primary key"
   else { columns; rows = [] }
 
+(**Convert a string to a value, given its corresponding column type.*)
 let convert_to_value col_type str =
   match col_type with
   | Int_type -> Int (int_of_string str)
@@ -164,6 +170,7 @@ let convert_to_value col_type str =
   | Date_type -> Date str
   | Null_type -> Null
 
+(**Insert a row into a table.*)
 let insert_row table column_names values =
   if List.length column_names <> List.length values then
     failwith "Number of columns does not match number of values";
@@ -181,12 +188,15 @@ let insert_row table column_names values =
   let new_row = row_values in
   table.rows <- { values = new_row } :: table.rows
 
+(**Update the rows of a table according to a predicate and transformation.*)
 let update_rows table pred f =
   table.rows <- List.map (fun r -> if pred r then f r else r) table.rows
 
+(**Delete the rows of a table according to a predicate.*)
 let delete_rows table pred =
   table.rows <- List.filter (fun r -> not (pred r)) table.rows
 
+(**Select the rows of a table according to a list of requested fields, a predicate, and an ordering column.*)
 let select_rows_table table column_names pred order_column =
   let columns =
     List.map
@@ -215,8 +225,10 @@ let select_rows_table table column_names pred order_column =
   in
   (order_column_ind, List.map filter_row (List.filter pred table.rows))
 
+(**Select all data from a table.*)
 let select_all table = table.rows
 
+(**Print a value table for viewing.*)
 let print_table table =
   let print_column column =
     match column.col_type with

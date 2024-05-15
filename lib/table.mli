@@ -15,6 +15,7 @@ type table
 (** Abstracted table type. *)
 
 val construct_transform : string list -> value list -> table -> row -> row
+(**Construct a table data transform function for updates.*)
 
 val construct_predicate :
   string list ->
@@ -23,12 +24,22 @@ val construct_predicate :
   table ->
   row ->
   bool
+(**Construct a predicate for filtering records for where clauses.*)
 
 val get_columns_lst : table -> bool -> string list
+(**Get a list of columns in a table with types or without.*)
+
 val construct_row_map : table -> row -> (string, value) Hashtbl.t
+(**Construct a row map, converting a list of values into a hashtable.*)
+
 val convert_to_value : column_type -> string -> value
+(**Convert a value in string form into an actual value, given its corresponding column type.*)
+
 val get_column_type : table -> string -> column_type
+(**Get the type of a specific column in a given table.*)
+
 val compare_row : int -> row -> row -> int
+(**Compare row ordering based on index for oder by clauses.*)
 
 val get_table_pk_field : table -> column option
 (**[get_pk_field] returns the primary key field in a table.*)

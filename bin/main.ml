@@ -1,6 +1,7 @@
 open Sqaml.Parser
 open Sqaml.Storage
 
+(**Main program driver to retrieve user input and call backend commands accordingly.*)
 let rec main_loop () =
   print_string "Enter an SQL command (or 'Ctrl-C' to quit): ";
   let rec read_lines acc =
@@ -20,6 +21,7 @@ let rec main_loop () =
         print_endline ("Error: " ^ msg);
         main_loop ())
 
+(**Generate the Camel start screen for SQaml (note: this is the most important part of the project).*)
 let () =
   let orange = "\027[38;5;208m" in
   let reset = "\027[0m" in
