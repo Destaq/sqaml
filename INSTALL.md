@@ -26,8 +26,6 @@ After cloning the repository, navigate to the project directory:
 cd sqaml
 ```
 
-> **Special MS2 Note:** we have been developing on a separate branch for the work-in-progress deliverable. Please switch to this branch before proceeding by executing `git checkout backend-wip`.
-
 You can now build the project using Dune:
 
 ```bash
@@ -56,17 +54,20 @@ Enter an SQL command (or 'exit;' to quit):
 
 ## Documentation
 
-_TODO: update with new SQL commands and examples._
-
-We currently support the following SQL commands using regular MySQL syntax.
+We currently support the following SQL commands/clauses using regular MySQL syntax.
 
 -   `CREATE TABLE`
 -   `INSERT INTO`
--   `SELECT *`
+-   `SELECT`
 -   `SHOW TABLES`
 -   `DELETE FROM`
 -   `UPDATE`
+-   `SET`
 -   `DROP TABLE`
+-   `WHERE`
+-   `LIMIT`
+-   `ORDER BY`
+
 
 Supported data types are:
 
@@ -126,7 +127,7 @@ Enter an SQL command (or 'exit;' to quit): DROP TABLE users;
 Enter an SQL command (or 'exit;' to quit): SHOW TABLES;
 No tables in database.
 ```
-
+Tables are persisted upon typing `exit;`, and the saved files for each corresponding table can be found in the `lib/storage` directory. For example, if a table `users` is created, the table will be saved to the path `lib/storage/users.sqaml`.
 ## Tests
 
 To run test, you can run `make bisect` from the root directory. This will run the tests and generate a coverage report in the `_coverage` directory, which is automatically opened.
