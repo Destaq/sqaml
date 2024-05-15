@@ -389,22 +389,6 @@ let test_select_rows_nonexistent_table =
       in
       assert_raises (Failure "Table does not exist") select_rows)
 
-(** [test_print_value] is an OUnit test that checks that [Sqaml.Row.print_value]
-    prints the correct representation of a value, for all value types. *)
-let test_print_value =
-  as_test "test_print_value" (fun () ->
-      let output =
-        with_redirected_stdout (fun () -> Sqaml.Row.print_value (Int 5))
-        ^ with_redirected_stdout (fun () -> Sqaml.Row.print_value (Float 4.5))
-        ^ with_redirected_stdout (fun () ->
-              Sqaml.Row.print_value (Varchar "hello"))
-        ^ with_redirected_stdout (fun () -> Sqaml.Row.print_value Null)
-        ^ with_redirected_stdout (fun () ->
-              Sqaml.Row.print_value (Date "2022-12-12"))
-      in
-      assert_equal ~printer:printer_wrapper "5\n4.5\nhello\nnull\n2022-12-12\n"
-        output)
-
 (** [test_value_equals] is an OUnit test that checks that [Sqaml.Row.value_equals]
     returns the correct boolean value when comparing two values, for all supported value types. *)
 let test_value_equals =
@@ -684,12 +668,26 @@ let test_parse_and_execute_query =
             Sqaml.Parser.parse_and_execute_query "DROP TABLE users")
       in
       assert_equal ~printer:printer_wrapper "" output_drop;
+
       let output_show =
         with_redirected_stdout (fun () ->
             Sqaml.Parser.parse_and_execute_query "SHOW TABLES")
       in
       assert_equal ~printer:printer_wrapper "No tables in database.\n"
         output_show;
+
+      (* This check has been moved here due to concurrency issues. *)
+      let output_print_value =
+        with_redirected_stdout (fun () -> Sqaml.Row.print_value (Int 5))
+        ^ with_redirected_stdout (fun () -> Sqaml.Row.print_value (Float 4.5))
+        ^ with_redirected_stdout (fun () ->
+              Sqaml.Row.print_value (Varchar "hello"))
+        ^ with_redirected_stdout (fun () -> Sqaml.Row.print_value Null)
+        ^ with_redirected_stdout (fun () ->
+              Sqaml.Row.print_value (Date "2022-12-12"))
+      in
+      assert_equal ~printer:printer_wrapper "5\n4.5\nhello\nnull\n2022-12-12\n"
+        output_print_value;
 
       create_tables ();
       Sqaml.Database.insert_row "test_table"
@@ -820,7 +818,6 @@ let suite =
          test_print_nonexistent_table;
          test_select_rows;
          test_select_rows_nonexistent_table;
-         test_print_value;
          test_value_equals;
          test_value_less_than;
          test_value_greater_than;
