@@ -28,6 +28,44 @@ let print_tokenized tokens =
       | PrimaryKey -> print_endline "PrimaryKey")
     tokens
 
+let replace_all str old_substring new_substring =
+  let rec replace_helper str old_substring new_substring start_pos =
+    try
+      let pos = String.index_from str start_pos old_substring.[0] in
+      if String.sub str pos (String.length old_substring) = old_substring then
+        let prefix = String.sub str 0 pos in
+        let suffix =
+          String.sub str
+            (pos + String.length old_substring)
+            (String.length str - (pos + String.length old_substring))
+        in
+        let new_str = prefix ^ new_substring ^ suffix in
+        replace_helper new_str old_substring new_substring
+          (pos + String.length new_substring)
+      else replace_helper str old_substring new_substring (pos + 1)
+    with Not_found -> str
+  in
+  replace_helper str old_substring new_substring 0
+
+let rec quote_grouping acc cur_group in_group tokens =
+  match tokens with
+  | [] -> List.rev acc
+  | h :: t ->
+      if in_group then
+        if String.ends_with ~suffix:"\"" h then
+          quote_grouping
+            ((cur_group ^ " " ^ replace_all h "\"" "") :: acc)
+            "" false t
+        else
+          quote_grouping acc
+            (cur_group ^ " " ^ replace_all h "\"" "")
+            in_group t
+      else if
+        String.starts_with ~prefix:"\"" h
+        && not (String.ends_with ~suffix:"\"" h)
+      then quote_grouping acc (cur_group ^ " " ^ replace_all h "\"" "") true t
+      else quote_grouping (replace_all h "\"" "" :: acc) cur_group in_group t
+
 let tokenize_query query =
   let rec tokenize acc = function
     | [] -> List.rev acc
@@ -48,7 +86,7 @@ let tokenize_query query =
   in
   query |> String.split_on_char ' '
   |> List.filter (fun s -> s <> "")
-  |> tokenize []
+  |> quote_grouping [] "" false |> tokenize []
 
 let check_column_order table_name columns =
   let actual_cols = get_table_columns table_name false in
@@ -325,32 +363,12 @@ let parse_select_records select_tokens =
   in
   List.iter (fun row -> Row.print_row row) selected_rows
 
-let replace_all str old_substring new_substring =
-  let rec replace_helper str old_substring new_substring start_pos =
-    try
-      let pos = String.index_from str start_pos old_substring.[0] in
-      if String.sub str pos (String.length old_substring) = old_substring then
-        let prefix = String.sub str 0 pos in
-        let suffix =
-          String.sub str
-            (pos + String.length old_substring)
-            (String.length str - (pos + String.length old_substring))
-        in
-        let new_str = prefix ^ new_substring ^ suffix in
-        replace_helper new_str old_substring new_substring
-          (pos + String.length new_substring)
-      else replace_helper str old_substring new_substring (pos + 1)
-    with Not_found -> str
-  in
-  replace_helper str old_substring new_substring 0
-
 let parse_query query =
   let query = replace_all query "," " , " in
   let query = replace_all query "(" " ( " in
   let query = replace_all query ")" " ) " in
   let query = replace_all query "`" "" in
   let query = replace_all query "'" "" in
-  let query = replace_all query "\"" "" in
   let query = replace_all query "\n" "" in
   let query = replace_all query "\r" "" in
   let tokens = tokenize_query query in
