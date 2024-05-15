@@ -1,9 +1,6 @@
 id,name
 int,varchar
-7,Jonathan
-4,Simon
-3,Eashan
-2,Andrew
-1,Alex
 5,Andrew
-6,Alex
+2,Andrew
+4,Simon
+7,Jonathan
