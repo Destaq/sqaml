@@ -20,7 +20,7 @@ title: "SQamL (SQL in OCaml)"
 # OK if this is a Cornell Github link, but public gallery viewers won't be able to see it.
 git-repo: "https://github.com/Destaq/sqaml"
 # If you have no demo screencast, replace the url string with an empty string ""
-demo-video-url: "https://youtu.be/XEvhg-QF-hc"
+demo-video-url: "https://youtu.be/9TyWdn2Lsvk"
 # Write a short, attention-grabbing description of your project.
 desc: >
   A basic custom relational database implemented entirely in OCaml,
