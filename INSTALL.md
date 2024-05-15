@@ -19,6 +19,7 @@ SQamL is available [on GitHub here](https://github.com/Destaq/sqaml/). Please cl
 ```bash
 git clone https://github.com/Destaq/sqaml.git
 ```
+Alternatively, you can use the installed unzipped repository i.e. from CMSX.
 
 After cloning the repository, navigate to the project directory:
 
