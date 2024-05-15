@@ -1,0 +1,5 @@
+_build
+gitlog.txt
+sqaml.zip
+_coverage/*
+lib/storage/*

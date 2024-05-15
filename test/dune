@@ -1,0 +1,3 @@
+(test
+ (libraries ounit2 qcheck sqaml)
+ (name test_sqaml))

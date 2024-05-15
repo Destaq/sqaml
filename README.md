@@ -1,5 +1,7 @@
 # sqaml
 
+Please see `INSTALL.md` for instructions on how to build, run, and use the project.
+
 ## Collaborators
 
 1. Simon Ilincev (sci24)
