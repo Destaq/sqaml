@@ -90,22 +90,13 @@ Please note that all SQL commands must be terminated with a semicolon (`;`). Add
       [[] [[]]
 Welcome to the SQAMLVerse!
 Enter an SQL command (or 'exit;' to quit): CREATE TABLE users (id int primary key, name varchar);
-id: int
-name: varchar
 
 Enter an SQL command (or 'exit;' to quit): CREATE TABLE users (id int primary key, name varchar, age int);
 Error: Table already exists
 
 Enter an SQL command (or 'exit;' to quit): INSERT INTO users (id, name) VALUES (1, 'Simon');
-id: int
-name: varchar
-1 'Simon'
 
 Enter an SQL command (or 'exit;' to quit): INSERT INTO users (id, name) VALUES (2, 'Alex');
-id: int
-name: varchar
-2 'Alex'
-1 'Simon'
 
 Enter an SQL command (or 'exit;' to quit): SELECT * FROM users;
 2 'Alex'
@@ -118,7 +109,7 @@ Enter an SQL command (or 'exit;' to quit): SELECT * FROM users ORDER BY id ASC;
 1 'Simon'
 2 'Alex'
 
-Enter an SQL command (or 'exit;' to quit): SELECT * FROM users ORDER BY id LIMIT 1;
+Enter an SQL command (or 'exit;' to quit): SELECT * FROM users ORDER BY id ASC LIMIT 1;
 1 'Simon'
 
 Enter an SQL command (or 'exit;' to quit): DELETE FROM users WHERE name = 'Alex';
@@ -140,7 +131,7 @@ No tables in database.
 Tables are persisted upon typing `exit;`, and the saved files for each corresponding table can be found in the `lib/storage` directory. For example, if a table `users` is created, the table will be saved to the path `lib/storage/users.sqaml`.
 ## Tests
 
-To run test, you can run `make bisect` from the root directory. This will run the tests and generate a coverage report in the `_coverage` directory, which is automatically opened.
+To run test, you can run `make open-bisect` from the root directory. This will run the tests and generate a coverage report in the `_coverage` directory, which is automatically opened.
 
 You can also choose to directly run the tests through `dune test`, also from the root directory.
 
