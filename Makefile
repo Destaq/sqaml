@@ -12,3 +12,6 @@ open-bisect:
 clean:
 	rm -rf _coverage
 	dune clean
+
+cloc:
+	cloc --by-file --include-lang=OCaml . --exclude-dir=_build,.git
